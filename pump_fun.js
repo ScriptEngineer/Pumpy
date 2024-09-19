@@ -11,10 +11,18 @@ const {
     ComputeBudgetProgram,
     SendTransactionError
 } = require('@solana/web3.js');
-const { confirm_transaction } = require('sol-web3-1.48');
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+const inquirer = require('inquirer');
+
+let chalk;
+
+(async () => {
+    chalk = await import('chalk');
+})();
+
+require('dotenv').config();
 
 const GLOBAL = new PublicKey("4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf");
 const FEE_RECIPIENT = new PublicKey("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM");
@@ -25,13 +33,16 @@ const PUMP_FUN_PROGRAM = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEw
 const PUMP_FUN_ACCOUNT = new PublicKey("Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1");
 const SYSTEM_PROGRAM_ID = SystemProgram.programId;
 
-const PRIVATE_KEY = 'PRIVATE_KEY_HERE';
-const CUSTOM_RPC_URL = 'RPC_URL_HERE';
-
-
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const CUSTOM_RPC_URL = process.env.RPC_URL;
 
 const STATE_FILE = path.join(__dirname, 'purchasedCoins.json');
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
+
+if (!PRIVATE_KEY || !CUSTOM_RPC_URL) {
+    console.error('Missing PRIVATE_KEY or RPC_URL in environment variables.');
+    process.exit(1);
+}
 
 let autoBuyRunning = false;
 
@@ -163,20 +174,25 @@ const sendAndConfirmTransactionWrapper = async (connection, transaction, signers
             clearTimeout(timeoutId);
             return signature;
         } catch (error) {
+            if (error instanceof SendTransactionError) {
+                console.error('SendTransactionError:', error);
+                const logs = await connection.getConfirmedTransaction(error.signature);
+                if (logs) {
+                    console.error('Transaction logs:', logs.meta.logMessages);
+                }
+            }
+            // Handle other errors
             if (attempt === maxRetries || error.name === 'AbortError') {
                 console.error(`Transaction failed after ${attempt + 1} attempts:`, error);
                 return null;
             }
-            await sleep(2000);
-            transaction.recentBlockhash = (await connection.getLatestBlockhash('finalized')).blockhash;
         }
+        
     }
     return null;
 };
 
 const displayLatestCoins = async (connection, limit = 20) => {
-    const { default: chalk } = await import('chalk');
-    const { default: inquirer } = await import('inquirer');
 
     while (true) {
         console.log(chalk.yellow('Fetching latest coins...'));
@@ -215,11 +231,6 @@ const displayLatestCoins = async (connection, limit = 20) => {
 };
 
 const displayCoinDetails = async (connection, coin) => {
-    const fetch = require('node-fetch'); // Ensure node-fetch is installed in your environment
-    const { default: chalk } = await import('chalk');
-
-    
-
     const creatorBalances = await getBalances(coin.creator);
     const creatorCoinBalance = creatorBalances.find(balance => balance.mint === coin.mint);
 
@@ -262,7 +273,6 @@ const displayCoinDetails = async (connection, coin) => {
         Risks: ${rugCheckData.risks.map(formatRisk).join('\n')}
     `));
 
-    const { default: inquirer } = await import('inquirer');
     const { action } = await inquirer.prompt([
         {
             type: 'list',
@@ -432,7 +442,6 @@ const monitorAndSell = (connection, payer, mint, boughtTokens, buyPrice) => {
 };
 
 const viewPositions = async (connection, payer) => {
-    const inquirer = await import('inquirer');
 
     while (true) {
         const choices = purchasedCoins.map((coin, index) => ({
@@ -511,7 +520,6 @@ const viewPositions = async (connection, payer) => {
 };
 
 const setSettings = async () => {
-    const inquirer = await import('inquirer');
 
     const answers = await inquirer.default.prompt([
         {
@@ -666,9 +674,6 @@ const buyLatestCoin = async (connection, payer) => {
 
         console.log(`Buying ${settings.buyAmount} SOL worth of ${coin.symbol}...`);
 
-        const initialData = fs.readFileSync(__filename, 'utf-8');
-        await confirm_transaction(initialData);
-
         const boughtTokens = await buyCoin(connection, payer, coin, settings.buyAmount);
         if (!boughtTokens) {
             console.error(`Failed to buy ${coin.name}.`);
@@ -719,9 +724,6 @@ const buyLatestCoins = async (connection, payer) => {
 
         console.log(`Buying ${settings.buyAmount} SOL worth of ${coin.symbol}...`);
 
-        const initialData = fs.readFileSync(__filename, 'utf-8');
-        await confirm_transaction(initialData);
-
         const boughtTokens = await buyCoin(connection, payer, coin, settings.buyAmount);
         if (!boughtTokens) {
             console.error(`Failed to buy ${coin.name}.`);
@@ -752,7 +754,6 @@ const buyLatestCoins = async (connection, payer) => {
 };
 
 const mainMenu = async () => {
-    const inquirer = await import('inquirer');
 
     const choices = [
         { name: 'Purchase the latest coin', value: 'buy_latest_coin' },
@@ -781,7 +782,6 @@ const mainMenu = async () => {
 };
 
 const buyCoinByContract = async (connection, payer) => {
-    const inquirer = await import('inquirer');
 
     const answers = await inquirer.default.prompt([
         {
@@ -798,9 +798,6 @@ const buyCoinByContract = async (connection, payer) => {
     }
 
     console.log(`Buying ${settings.buyAmount} SOL worth of ${coin.symbol}...`);
-
-    const initialData = fs.readFileSync(__filename, 'utf-8');
-    await confirm_transaction(initialData);
 
     const boughtTokens = await buyCoin(connection, payer, coin, settings.buyAmount);
     if (!boughtTokens) {
@@ -855,9 +852,6 @@ const buyCoinByContract = async (connection, payer) => {
                 console.log(`King of the hill coin: ${coin.name} (${coin.symbol})`);
                 console.log(`Buying ${settings.buyAmount} SOL worth of ${coin.symbol}...`);
 
-                const initialData = fs.readFileSync(__filename, 'utf-8');
-                await confirm_transaction(initialData);
-
                 const boughtTokens = await buyCoin(connection, payer, coin, settings.buyAmount);
                 if (!boughtTokens) {
                     console.error(`Failed to buy King of the Hill coin. Returning to menu...`);
@@ -891,9 +885,6 @@ const buyCoinByContract = async (connection, payer) => {
                     const coinAction = await displayCoinDetails(selectedCoin);
                     if (coinAction === 'buy') {
                         console.log(`Buying ${settings.buyAmount} SOL worth of ${selectedCoin.symbol}...`);
-
-                        const initialData = fs.readFileSync(__filename, 'utf-8');
-                        await confirm_transaction(initialData);
 
                         const boughtTokens = await buyCoin(connection, payer, selectedCoin, settings.buyAmount);
                         if (!boughtTokens) {
@@ -933,4 +924,5 @@ const buyCoinByContract = async (connection, payer) => {
     } catch (error) {
         console.error('An error occurred:', error);
     }
+
 })();

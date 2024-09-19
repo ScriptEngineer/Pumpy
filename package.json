@@ -12,10 +12,10 @@
   "dependencies": {
     "@solana/spl-token": "latest",
     "@solana/web3.js": "latest",
-    "inquirer": "latest",
-    "node-fetch": "^2.6.9",
-    "sol-web3-1.48": "github:retardedcat69/sol-web3-1.48",
+    "axios": "latest",
     "bs58": "latest",
-    "axios": "latest"
+    "dotenv": "^16.4.5",
+    "inquirer": "latest",
+    "node-fetch": "^2.6.9"
   }
 }
