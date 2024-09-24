@@ -155,32 +155,25 @@ async function buyMemeCoin(poolInfo) {
 }
 
 // Endpoint to receive webhooks from Helius
-app.post('/webhook', async (req, res) => {
+app.post('/ray', async (req, res) => {
   try {
     const data = req.body[0];
-
-    console.log(data);
-
+    
     if (data.source == "RAYDIUM") { 
-        console.log("RAYDIUM LIQUID POOL CREATED");
+      
+      /*console.log(data);*/  
+      console.log("RAYDIUM LIQUID POOL CREATED");
 
-        const accountData = data.accountData;
-        console.log("Account data: ");
-        accountData.forEach(dta => {
-            console.log(dta);
-        })
+      const tokenTransfers = data.tokenTransfers;    
+      const newToken = tokenTransfers[0].mint;
+      console.log("New token mint: ", newToken);
 
-        const instructions = data.instructions;
-        console.log("Instructions: ");
-        instructions.forEach(inst => {
-            console.log(inst);
-        });
-
-        const tokenTransfers = data.tokenTransfers;
-        console.log("Token transfers: ");
-        tokenTransfers.forEach(transfer => {
-            console.log(transfer);
-        });
+      if (tokenTransfers[1].mint == "So11111111111111111111111111111111111111112") {
+        const initalLiquidity = tokenTransfers[1].tokenAmount;
+        console.log("Initial liquidity amount: ");
+        console.log(initalLiquidity);
+      }
+      
 
     }
 
@@ -191,6 +184,43 @@ app.post('/webhook', async (req, res) => {
     res.status(500).send('Error');
   }
 });
+
+app.post('/pumpkins', async (req, res) => {
+  try {
+    const data = req.body[0];
+    let initialSol = 0;
+    let initialTokens = 0;
+    let tokenLocation = data.tokenTransfers[0].mint;
+  
+    console.log(data);  
+    console.log("Pumpy is Pumping");
+
+    data.nativeTransfers.forEach(transfer => {
+        if (transfer.amount > initialSol) {
+          initialSol = transfer.amount / 1_000_000_000; // Convert lamports to SOL
+        }
+    });
+
+    data.tokenTransfers.forEach(transfer => {
+        if (!tokenMint) {
+          tokenMint = transfer.mint;
+        }
+
+        if (transfer.tokenAmount > initialTokens) {
+          initialTokens = transfer.tokenAmount;
+        }
+    });
+
+    console.log("Initial SOL: ", initialSol);
+    console.log("Initial Tokens: ", initialTokens);
+    res.status(200).send('Received');
+
+  } catch (error) {
+    console.error('Error processing webhook:', error);
+    res.status(500).send('Error');
+  }
+});
+
 
 // Start the server
 const PORT = process.env.PORT || 3000;
