@@ -1,5 +1,6 @@
 // CommonJS Imports
 const { Keypair, Connection, Transaction, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
+const { getOrCreateAssociatedTokenAccount, createTransferInstruction } = require('@solana/spl-token');
 const RaydiumSDK = require('@raydium-io/raydium-sdk'); // Import Raydium SDK
 const express = require('express');
 const { json } = require('body-parser');
@@ -45,6 +46,38 @@ async function retry(fn, retries = 3, delay = 1000) {
     }
   }
 }
+
+async function getOrCreateTokenAccount() {
+  const tokenAccount = await getOrCreateAssociatedTokenAccount(
+      connection,
+      wallet, // Wallet's Keypair
+      new PublicKey(PUMP_FUN_MINT), // Token Mint Address
+      wallet.publicKey // Owner of the account
+  );
+  return tokenAccount.address;
+}
+
+async function buyPumpFunToken() {
+  const tokenAccount = await getOrCreateTokenAccount();
+  
+  const transaction = new Transaction();
+
+  // Add instructions for the purchase (This should be a swap instruction or direct token transfer)
+  const transferInstruction = createTransferInstruction(
+      tokenAccount.address, // Your associated token account
+      new PublicKey(POOL_ADDRESS), // Pool address to swap tokens
+      wallet.publicKey,
+      amountInSol * LAMPORTS_PER_SOL
+  );
+
+  transaction.add(transferInstruction);
+  const signature = await connection.sendTransaction(transaction, [wallet]);
+  await connection.confirmTransaction(signature, 'confirmed');
+  
+  console.log(`Transaction confirmed with signature: ${signature}`);
+}
+
+
 
 // Function to detect if the token is a meme coin
 function isMemeCoin(tokenMetadata) {
@@ -191,9 +224,9 @@ app.post('/pumpkins', async (req, res) => {
     let initialSol = 0;
     let initialTokens = 0;
     let tokenLocation = data.tokenTransfers[0].mint;
-  
-    console.log(data);  
+
     console.log("Pumpy is Pumping");
+    console.log("Token Location: ", tokenLocation);
 
     data.nativeTransfers.forEach(transfer => {
         if (transfer.amount > initialSol) {
@@ -202,10 +235,6 @@ app.post('/pumpkins', async (req, res) => {
     });
 
     data.tokenTransfers.forEach(transfer => {
-        if (!tokenMint) {
-          tokenMint = transfer.mint;
-        }
-
         if (transfer.tokenAmount > initialTokens) {
           initialTokens = transfer.tokenAmount;
         }
