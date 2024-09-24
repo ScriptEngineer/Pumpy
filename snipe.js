@@ -8,6 +8,8 @@ const bs58 = require('bs58').default;
 const { post } = require('axios');
 require('dotenv').config(); // Load environment variables
 
+const Raydium_Program = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
+const Pump_Program = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const { LIQUIDITY_PROGRAM_ID_V4 } = RaydiumSDK;
 const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 const JITO_API_KEY = process.env.JITO_API_KEY; // If Jito requires an API key
