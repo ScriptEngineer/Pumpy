@@ -1,4 +1,5 @@
-const {
+// Import all named exports from '@solana/web3.js'
+import {
     Connection,
     PublicKey,
     SystemProgram,
@@ -10,19 +11,19 @@ const {
     sendAndConfirmTransaction,
     ComputeBudgetProgram,
     SendTransactionError
-} = require('@solana/web3.js');
-const fetch = require('node-fetch');
-const fs = require('fs');
-const path = require('path');
-const inquirer = require('inquirer');
+} from '@solana/web3.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import fetch from 'node-fetch';
+import fs from 'fs';
+import inquirer from 'inquirer';
+import chalk from 'chalk';
+import dotenv from 'dotenv';
+import express from 'express';
+import bodyParser from 'body-parser';
 
-let chalk;
-
-(async () => {
-    chalk = await import('chalk');
-})();
-
-require('dotenv').config();
+// Call the config method to load environment variables
+dotenv.config();
 
 const GLOBAL = new PublicKey("4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf");
 const FEE_RECIPIENT = new PublicKey("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM");
@@ -35,6 +36,9 @@ const SYSTEM_PROGRAM_ID = SystemProgram.programId;
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const CUSTOM_RPC_URL = process.env.RPC_URL;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const STATE_FILE = path.join(__dirname, 'purchasedCoins.json');
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
@@ -290,6 +294,71 @@ const displayCoinDetails = async (connection, coin) => {
         await viewPositionDetails(connection, coin);  // Navigate to position info after buying
     }
 };
+
+const handleNewTokenMint = async (mintAddress) => {
+    try {
+
+        console.log("New token mint detected:", mintAddress);
+        const mintPubkey = new PublicKey(mintAddress);
+
+        // Fetch mint account data directly from the blockchain
+        const mintInfo = await connection.getParsedAccountInfo(mintPubkey);
+        if (!mintInfo.value) {
+            console.error('Mint account not found on-chain. Skipping...');
+            return;
+        }
+
+        // Extract necessary mint details
+        const mintData = mintInfo.value.data.parsed.info;
+        const decimals = mintData.decimals;
+        const supply = BigInt(mintData.supply);
+        const mintAuthority = mintData.mintAuthority;
+        const freezeAuthority = mintData.freezeAuthority;
+
+        // Check if mint authority is revoked
+        const isMintAuthorityRevoked = !mintAuthority;
+        const isFreezeAuthorityRevoked = !freezeAuthority;
+
+        // Apply on-chain filters
+        if (settings.require_revoked_authority && (!isMintAuthorityRevoked || !isFreezeAuthorityRevoked)) {
+            console.log('Mint or freeze authority not revoked. Skipping...');
+            return;
+        }
+
+        // Proceed to buy the token
+        const coinData = {
+            mint: mintAddress,
+            decimals,
+            total_supply: Number(supply) / Math.pow(10, decimals),
+            // Additional data required for buying
+        };
+
+        // Since we don't have virtual reserves, set default or fetch from on-chain data
+        const virtualReserves = await getVirtualReserves(mintPubkey);
+        if (!virtualReserves) {
+            console.log('Unable to fetch virtual reserves. Skipping...');
+            return;
+        }
+        coinData.virtual_token_reserves = virtualReserves.tokenReserves;
+        coinData.virtual_sol_reserves = virtualReserves.solReserves;
+
+        // Execute the purchase
+        /*
+        const boughtTokens = await buyCoin(connection, payer, coinData, settings.buyAmount);
+        if (boughtTokens) {
+            console.log(`Successfully bought ${boughtTokens} tokens of the new mint: ${mintAddress}`);
+            // Optionally start monitoring for take-profit/stop-loss
+            const buyPrice = settings.buyAmount / boughtTokens;
+            monitorAndSell(connection, payer, mintAddress, boughtTokens, buyPrice);
+        } else {
+            console.error('Failed to buy the new token.');
+        }*/
+
+    } catch (error) {
+        console.error('Error handling new token mint:', error);
+    }
+}
+
 
 const buyCoin = async (connection, payer, coinData, solIn, priorityFeeInSol = 0.001, slippageDecimal = 0.25) => {
     try {
@@ -756,6 +825,7 @@ const buyLatestCoins = async (connection, payer) => {
 const mainMenu = async () => {
 
     const choices = [
+        { name: 'Start Real-Time On-Chain Monitoring', value: 'start_monitoring' },
         { name: 'Purchase the latest coin', value: 'buy_latest_coin' },
         { name: 'Purchase the King of the Hill coin', value: 'buy_king_coin' },
         { name: 'View the latest 10 coins', value: 'view_latest_coins' },
@@ -769,7 +839,7 @@ const mainMenu = async () => {
         choices.splice(choices.length - 1, 0, { name: 'Stop auto-buy', value: 'stop_auto_buy' });
     }
 
-    const answers = await inquirer.default.prompt([
+    const answers = await inquirer.prompt([
         {
             type: 'list',
             name: 'action',
@@ -824,8 +894,102 @@ const buyCoinByContract = async (connection, payer) => {
     }
 };
 
+const startOnChainMonitoring = async (connection, payer) => {
+    console.log('Starting Real-Time On-Chain Monitoring for new token mints...');
+
+    // Listen to logs emitted by the Token Program (for InitializeMint instruction)
+    const subscriptionId = connection.onLogs('all', async (log) => {
+        const { logs, signature } = log;
+
+        // Check if the logs contain 'Program log: Instruction: InitializeMint'
+        if (logs.some((message) => message.includes('InitializeMint'))) {
+            try {
+
+                console.log("somthing is happening");
+                // Fetch the transaction details
+                const transaction = await connection.getTransaction(signature, { commitment: 'confirmed' });
+                const instructions = transaction.transaction.message.instructions;
+
+                for (const ix of instructions) {
+                    if (ix.programId.equals(TOKEN_PROGRAM_ID)) {
+                        const mintAddress = transaction.transaction.message.accountKeys[ix.accounts[0]].toString();
+                        console.log(`New token mint detected: ${mintAddress}`);
+
+                        // Apply filters
+                        /*
+                        const coin = await filterCoins(mintAddress);
+                        if (coin) {
+                            console.log(`Coin passed filters: ${coin.name} (${coin.symbol})`);
+
+                            // Check if already bought
+                            if (purchasedCoins.some(c => c.mint === coin.mint)) {
+                                console.log('Coin already purchased. Skipping...');
+                                continue;
+                            }
+
+                            // Buy the coin
+                            console.log(`Buying ${settings.buyAmount} SOL worth of ${coin.symbol}...`);
+                            const boughtTokens = await buyCoin(connection, payer, coin, settings.buyAmount);
+                            if (!boughtTokens) {
+                                console.error(`Failed to buy ${coin.name}.`);
+                                continue;
+                            }
+
+                            const buyPrice = coin.market_cap / coin.total_supply;
+                            console.log(`Bought ${boughtTokens} tokens at ${buyPrice.toFixed(9)} SOL per token.`);
+
+                            // Update positions
+                            purchasedCoins.push({ name: coin.name, symbol: coin.symbol, amount: boughtTokens, price: buyPrice, mint: coin.mint });
+                            savePurchasedCoins(purchasedCoins);
+
+                            // Start monitoring for take profit and stop loss
+                            if (settings.takeProfitEnabled || settings.stopLossEnabled) {
+                                console.log(`Monitoring price for ${coin.symbol}.`);
+                                monitorAndSell(connection, payer, coin.mint, boughtTokens, buyPrice);
+                            }
+                        } else {
+                            console.log(`Coin did not pass filters or not found: ${mintAddress}`);
+                        }
+                        */
+                    }
+                }
+            } catch (error) {
+                console.error('Error processing new token mint:', error);
+            }
+        }
+    });
+
+    console.log('Listening for new tokens...');
+};
+
+
 (async () => {
     try {
+
+        
+        const app = express();
+        app.use(bodyParser.json());
+
+        app.post('/webhook', async (req, res) => {
+            const data = req.body;
+
+            console.log(data);
+            // Process the webhook data
+            if (data.type === 'Mint') {
+                const mintAddress = data.account;
+                console.log(`New token mint detected: ${mintAddress}`);
+                // Proceed to buy the token
+                await handleNewTokenMint(mintAddress);
+            }
+            res.sendStatus(200);
+        });
+
+        app.listen(3000, () => {
+            console.log('Webhook listener running on port 3000');
+        });
+        
+
+        /*
         while (true) {
             const action = await mainMenu();
 
@@ -840,7 +1004,10 @@ const buyCoinByContract = async (connection, payer) => {
             const connection = new Connection(CUSTOM_RPC_URL || clusterApiUrl("mainnet-beta"), 'confirmed');
             const payer = await getKeyPairFromPrivateKey(PRIVATE_KEY);
 
-            if (action === 'buy_latest_coin') {
+
+            if (action === 'start_monitoring') {
+                await startOnChainMonitoring(connection, payer);
+            } else if (action === 'buy_latest_coin') {
                 if (settings.auto) {
                     autoBuyRunning = true; // Ensure auto-buy is set to true before running
                     await buyLatestCoins(connection, payer);
@@ -920,7 +1087,10 @@ const buyCoinByContract = async (connection, payer) => {
             } else if (action === 'buy_by_contract') {
                 await buyCoinByContract(connection, payer);
             }
-        }
+            
+        }*/
+
+
     } catch (error) {
         console.error('An error occurred:', error);
     }
