@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node pump_fun.mjs",
-    "snipe": "node snipe.js"
+    "snipe": "node snipe.js",
+    "tester": "node test.js"
   },
   "author": "",
   "license": "ISC",

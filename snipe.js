@@ -301,6 +301,10 @@ async function startSniper() {
       console.log(`Firing up on port ${PORT}...`);
     });
 
+    app.post('/', async (req, res) => {  
+      console.log("TESTER TESTING");
+    });
+
     app.post('/ray', async (req, res) => {
       try {
         const data = req.body[0];
