@@ -1,33 +1,36 @@
 // CommonJS Imports
-const { Keypair, Connection, Transaction, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
-const { getOrCreateAssociatedTokenAccount, createTransferInstruction } = require('@solana/spl-token');
-const RaydiumSDK = require('@raydium-io/raydium-sdk'); // Import Raydium SDK
+const {
+  Keypair,
+  Connection,
+  Transaction,
+  PublicKey,
+  LAMPORTS_PER_SOL,
+  sendAndConfirmTransaction,
+} = require('@solana/web3.js');
+const {
+  getOrCreateAssociatedTokenAccount,
+  createTransferInstruction,
+} = require('@solana/spl-token');
+const RaydiumSDK = require('@raydium-io/raydium-sdk');
+const { Liquidity, NATIVE_SOL } = RaydiumSDK;
 const express = require('express');
 const { json } = require('body-parser');
-const fetch = require('isomorphic-fetch');
-const bs58 = require('bs58').default; 
-const { post } = require('axios');
+const axios = require('axios');
+const bs58 = require('bs58').default;
 require('dotenv').config(); // Load environment variables
+const BN = require('bn.js'); // BigNumber library for handling large integers
 
-const Raydium_Program = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
-const Pump_Program = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
-const { LIQUIDITY_PROGRAM_ID_V4 } = RaydiumSDK;
-const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
-const JITO_API_KEY = process.env.JITO_API_KEY; // If Jito requires an API key
 const JITO_ENDPOINT = process.env.JITO_ENDPOINT || 'https://api.jito.wtf/';
-const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+const SOLANA_RPC_URL =
+  process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 const PRIVATE_KEY = process.env.PRIVATE_KEY; // Base58 encoded
 const BUY_AMOUNT_SOL = parseFloat(process.env.BUY_AMOUNT_SOL) || 1; // Amount of SOL to spend on the meme coin
-const MEME_COIN_CRITERIA = process.env.MEME_COIN_CRITERIA
-  ? process.env.MEME_COIN_CRITERIA.split(',')
-  : ['meme', 'doge', 'shiba', 'inu'];
 
 // Load wallet
 if (!PRIVATE_KEY) {
-  throw new Error('WALLET_PRIVATE_KEY is not set in environment variables');
+  throw new Error('PRIVATE_KEY is not set in environment variables');
 }
 
-// Correct usage of decode from bs58
 const secretKey = bs58.decode(PRIVATE_KEY);
 const wallet = Keypair.fromSecretKey(secretKey);
 
@@ -35,221 +38,215 @@ const wallet = Keypair.fromSecretKey(secretKey);
 const app = express();
 app.use(json());
 
-// Retry logic for network calls
-async function retry(fn, retries = 3, delay = 1000) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await fn();
-    } catch (error) {
-      if (i === retries - 1) throw error;
-      await new Promise(res => setTimeout(res, delay));
-    }
-  }
-}
-
-async function getOrCreateTokenAccount() {
-  const tokenAccount = await getOrCreateAssociatedTokenAccount(
-      connection,
-      wallet, // Wallet's Keypair
-      new PublicKey(PUMP_FUN_MINT), // Token Mint Address
-      wallet.publicKey // Owner of the account
-  );
-  return tokenAccount.address;
-}
-
-async function buyPumpFunToken() {
-  const tokenAccount = await getOrCreateTokenAccount();
-  
-  const transaction = new Transaction();
-
-  // Add instructions for the purchase (This should be a swap instruction or direct token transfer)
-  const transferInstruction = createTransferInstruction(
-      tokenAccount.address, // Your associated token account
-      new PublicKey(POOL_ADDRESS), // Pool address to swap tokens
-      wallet.publicKey,
-      amountInSol * LAMPORTS_PER_SOL
-  );
-
-  transaction.add(transferInstruction);
-  const signature = await connection.sendTransaction(transaction, [wallet]);
-  await connection.confirmTransaction(signature, 'confirmed');
-  
-  console.log(`Transaction confirmed with signature: ${signature}`);
-}
-
-
-
-// Function to detect if the token is a meme coin
-function isMemeCoin(tokenMetadata) {
-  const name = tokenMetadata.name ? tokenMetadata.name.toLowerCase() : '';
-  const symbol = tokenMetadata.symbol ? symbol.toLowerCase() : '';
-  const description = tokenMetadata.description
-    ? tokenMetadata.description.toLowerCase()
-    : '';
-  return MEME_COIN_CRITERIA.some(
-    (keyword) =>
-      name.includes(keyword) ||
-      symbol.includes(keyword) ||
-      description.includes(keyword)
-  );
-}
-
 // Function to fetch token metadata with fallback and retry
 async function getTokenMetadata(mintAddress) {
   const solscanUrl = `https://public-api.solscan.io/token/meta?tokenAddress=${mintAddress}`;
   try {
-    const response = await fetch(solscanUrl, { timeout: 5000 });
-    if (response.ok) {
-      return await response.json();
-    }
-    console.error(`Error fetching metadata, Status: ${response.status}`);
+    const response = await axios.get(solscanUrl, { timeout: 5000 });
+    return response.data;
   } catch (error) {
-    console.error('Error fetching token metadata:', error);
+    console.error('Error fetching token metadata:', error.message);
   }
   return {}; // Default to an empty object if the request fails
 }
 
-// Swap logic integrated with Raydium SDK
-async function createSwapInstruction({ poolKeys, userSourceTokenAccount, userDestinationTokenAccount, amountIn }) {
-  const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
-
-  // Use Raydium SDK to create swap instruction
-  const swapInstruction = await Liquidity.makeSwapInstructionSimple({
-    connection,
-    poolKeys,
-    userKeys: {
-      tokenAccounts: {
-        base: userSourceTokenAccount,
-        quote: userDestinationTokenAccount,
-      },
-      owner: wallet.publicKey,
-    },
-    amountIn,
-    amountOut: 0, // Use slippage tolerance here
-    fixedSide: 'base', // Fixed-side token to swap from
-  });
-
-  return swapInstruction;
-}
-
-// Function to execute buy order using Jito bundles
-async function buyMemeCoin(poolInfo) {
-  const memeCoinMint = poolInfo.tokenMint;
-  const poolKeys = poolInfo.poolKeys;  // Assuming poolKeys is passed with the pool data
-
-  // Initialize connections
-  const standardConnection = new Connection(SOLANA_RPC_URL, 'confirmed');
-  const jitoConnection = new Connection(JITO_ENDPOINT, 'confirmed');
-
-  // Placeholder: User's MEME token account (actual logic to get/create token account needed)
-  const memeCoinAccount = new PublicKey('YOUR_DESTINATION_MEME_TOKEN_ACCOUNT_PUBLIC_KEY');
-
-  // Create transaction with actual swap logic
-  const transaction = new Transaction();
-  const swapInstruction = await createSwapInstruction({
-    poolKeys,
-    userSourceTokenAccount: wallet.publicKey, // User SOL account
-    userDestinationTokenAccount: memeCoinAccount, // Destination MEME token account
-    amountIn: BUY_AMOUNT_SOL * LAMPORTS_PER_SOL, // Amount in SOL
-  });
-  transaction.add(swapInstruction);
-
-  // Fetch recent blockhash from the standard connection
-  const recentBlockhash = (await standardConnection.getRecentBlockhash()).blockhash;
-  transaction.recentBlockhash = recentBlockhash;
-  transaction.feePayer = wallet.publicKey;
-  transaction.sign(wallet);
-
-  // Serialize the transaction
-  const serializedTransaction = transaction.serialize();
-
-  // Prepare the bundle for Jito
-  const bundle = {
-    transactions: [serializedTransaction.toString('base64')],
-  };
-
-  // Send the bundle to Jito with retry logic
-  try {
-    const response = await retry(() =>
-      post(`${JITO_ENDPOINT}/bundle`, bundle, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${JITO_API_KEY}`,
-        },
-      })
-    );
-    console.log(`Transaction bundle submitted via Jito:`, response.data);
-  } catch (error) {
-    console.error(
-      'Error submitting transaction bundle via Jito:',
-      error.response ? error.response.data : error.message
-    );
-  }
-}
-
-// Endpoint to receive webhooks from Helius
+// Endpoint to receive webhooks from Raydium
 app.post('/ray', async (req, res) => {
   try {
     const data = req.body[0];
-    
-    if (data.source == "RAYDIUM") { 
-      
-      /*console.log(data);*/  
-      console.log("RAYDIUM LIQUID POOL CREATED");
 
-      const tokenTransfers = data.tokenTransfers;    
-      const newToken = tokenTransfers[0].mint;
-      console.log("New token mint: ", newToken);
+    if (data.source === 'RAYDIUM') {
+      console.log('RAYDIUM LIQUIDITY POOL CREATED');
 
-      if (tokenTransfers[1].mint == "So11111111111111111111111111111111111111112") {
-        const initalLiquidity = tokenTransfers[1].tokenAmount;
-        console.log("Initial liquidity amount: ");
-        console.log(initalLiquidity);
+      const tokenTransfers = data.tokenTransfers;
+      const newTokenMint = tokenTransfers[0].mint;
+      console.log('New token mint: ', newTokenMint);
+      const tokenMetadata = await getTokenMetadata(newTokenMint);
+
+      console.log('Detected a meme coin!');
+
+      // Fetch pool keys using Raydium SDK
+      const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+      const allPools = await Liquidity.fetchAllPoolKeys(connection);
+      const poolInfo = Object.values(allPools).find((pool) =>
+          (pool.baseMint.equals(new PublicKey(newTokenMint)) &&
+            pool.quoteMint.equals(NATIVE_SOL.mint)) ||
+          (pool.quoteMint.equals(new PublicKey(newTokenMint)) &&
+            pool.baseMint.equals(NATIVE_SOL.mint))
+      );
+
+      if (poolInfo) {
+        console.log('Found liquidity pool for the meme coin');
+        await buyToken(newTokenMint, null, "raydium");
+
+      } else {
+        console.log('No liquidity pool found for the meme coin');
       }
-      
 
     }
 
     res.status(200).send('Received');
-
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    console.error('Error processing /ray webhook:', error.message);
     res.status(500).send('Error');
   }
 });
 
+// Endpoint to receive webhooks from Pump Fun
 app.post('/pumpkins', async (req, res) => {
   try {
-    const data = req.body[0];
+
     let initialSol = 0;
     let initialTokens = 0;
-    let tokenLocation = data.tokenTransfers[0].mint;
+    
+    const data = req.body[0];
+    const tokenMint = data.tokenTransfers[0].mint;
 
-    console.log("Pumpy is Pumping");
-    console.log("Token Location: ", tokenLocation);
+    console.log(data);
+    console.log('PUMP FUN POOL CREATED');
+    console.log('Token Mint: ', tokenMint);
 
-    data.nativeTransfers.forEach(transfer => {
-        if (transfer.amount > initialSol) {
-          initialSol = transfer.amount / 1_000_000_000; // Convert lamports to SOL
-        }
+    data.nativeTransfers.forEach((transfer) => {
+      if (transfer.amount > initialSol) {
+        initialSol = transfer.amount / LAMPORTS_PER_SOL;
+      }
     });
 
-    data.tokenTransfers.forEach(transfer => {
-        if (transfer.tokenAmount > initialTokens) {
-          initialTokens = transfer.tokenAmount;
-        }
+    data.tokenTransfers.forEach((transfer) => {
+      if (transfer.tokenAmount > initialTokens) {
+        initialTokens = transfer.tokenAmount;
+      }
     });
 
-    console.log("Initial SOL: ", initialSol);
-    console.log("Initial Tokens: ", initialTokens);
+    console.log('Initial SOL Liquidity: ', initialSol);
+    console.log('Initial Tokens Liquidity: ', initialTokens);
+
+    await buyToken(tokenMint, "pump_fun");
+
     res.status(200).send('Received');
-
+    
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    console.error('Error processing /pumpkins webhook:', error.message);
     res.status(500).send('Error');
   }
 });
 
+async function buyToken(tokenMint, poolAddress = null, exchange = "raydium") {
+  const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+  const mintAddress = new PublicKey(tokenMint);
+
+  // Get or create associated token account for the target token (Pump Fun or Meme Coin)
+  const tokenAccount = await getOrCreateAssociatedTokenAccount(
+    connection,
+    wallet,
+    mintAddress,
+    wallet.publicKey
+  );
+
+  // Amount in SOL, converted to lamports
+  const amountInLamports = new BN(BUY_AMOUNT_SOL * LAMPORTS_PER_SOL);
+
+  // Fetch pool keys depending on the exchange
+  let poolKeys;
+  if (exchange === "pump_fun") {
+
+    if (!poolAddress) {
+      console.error("Pump Fun pool address is required for Pump Fun exchange.");
+      return;
+    }
+    // Use predefined Pump Fun pool address
+    poolKeys = await Liquidity.fetchPoolKeysByPoolId(
+      connection,
+      new PublicKey(poolAddress)
+    );
+
+  } else if (exchange === "raydium") {
+
+    // For meme coins, fetch all pools and find the relevant one
+    const allPools = await Liquidity.fetchAllPoolKeys(connection);
+    poolKeys = Object.values(allPools).find(
+      (pool) =>
+        (pool.baseMint.equals(mintAddress) &&
+          pool.quoteMint.equals(NATIVE_SOL.mint)) ||
+        (pool.quoteMint.equals(mintAddress) &&
+          pool.baseMint.equals(NATIVE_SOL.mint))
+    );
+
+  } else {
+    console.error(`Unknown exchange: ${exchange}`);
+    return;
+  }
+
+  if (!poolKeys) {
+    console.error('Could not find pool keys for the token');
+    return;
+  }
+
+  // Create swap transaction
+  const { transaction, signers } = await Liquidity.makeSwapTransaction({
+    connection,
+    poolKeys,
+    userKeys: {
+      owner: wallet.publicKey,
+      tokenAccounts: {
+        input: wallet.publicKey, // User's SOL account
+        output: tokenAccount.address, // Token account for Pump Fun or meme coin
+      },
+    },
+    amountIn: amountInLamports,
+    amountOut: new BN(0), 
+    fixedSide: 'in',
+  });
+
+  transaction.feePayer = wallet.publicKey;
+
+  // Fetch recent blockhash
+  const { blockhash } = await connection.getLatestBlockhash('confirmed');
+  transaction.recentBlockhash = blockhash;
+  transaction.sign(wallet, ...signers);
+
+  // Add tip instruction to incentivize processing
+  addTipInstruction(transaction);
+
+  // Serialize the transaction
+  const serializedTransaction = transaction.serialize();
+  const base58EncodedTransaction = serializedTransaction.toString('base58');
+
+  // Send the bundle to Jito
+  await sendBundleToJito([base58EncodedTransaction]);
+}
+
+async function sendBundleToJito(transactions) {
+  try {
+    const payload = {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'sendBundle',
+      params: [transactions]
+    };
+
+    const response = await axios.post(JITO_ENDPOINT, payload, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    console.log('Bundle submitted to Jito: ', response.data);
+  } catch (error) {
+    console.error('Error submitting bundle to Jito: ', error.message);
+  }
+}
+
+function addTipInstruction(transaction) {
+  const tipAccount = new PublicKey('96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5'); // Random tip account
+  const tipAmountLamports = 1000; // Minimum required tip (adjust as needed)
+
+  const tipInstruction = SystemProgram.transfer({
+    fromPubkey: wallet.publicKey,
+    toPubkey: tipAccount,
+    lamports: tipAmountLamports,
+  });
+
+  transaction.add(tipInstruction);
+}
 
 // Start the server
 const PORT = process.env.PORT || 3000;
