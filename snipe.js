@@ -22,7 +22,7 @@ const BN = require('bn.js'); // BigNumber library for handling large integers
 
 const PORT = process.env.PORT || 3000;
 const JITO_ENDPOINT = process.env.JITO_ENDPOINT || 'https://api.jito.wtf/';
-const SOLANA_RPC_URL = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com';
 const PRIVATE_KEY = process.env.PRIVATE_KEY; // Base58 encoded
 const BUY_AMOUNT_SOL = parseFloat(process.env.BUY_AMOUNT_SOL) || 1; // Amount of SOL to spend on the meme coin
 
@@ -131,7 +131,7 @@ async function swapToken(
   direction = 'sell',
   USE_JITO = false
 ) {
-  const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+  const connection = new Connection(RPC_URL, 'confirmed');
   const mintAddress = new PublicKey(tokenMint);
 
   // Get or create associated token account for the token
@@ -303,6 +303,7 @@ async function startSniper() {
 
     app.post('/', async (req, res) => {  
       console.log("TESTER TESTING");
+      res.status(200).send('Received');
     });
 
     app.post('/ray', async (req, res) => {
@@ -321,7 +322,7 @@ async function startSniper() {
           console.log('Detected a meme coin!');
 
           // Fetch pool keys using Raydium SDK
-          const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+          const connection = new Connection(RPC_URL, 'confirmed');
           const allPools = await Liquidity.fetchAllPoolKeys(connection);
           const poolInfo = Object.values(allPools).find((pool) =>
               (pool.baseMint.equals(new PublicKey(newTokenMint)) &&
@@ -407,6 +408,8 @@ async function startSniper() {
 (async () => {
   try {
 
+    console.log(`\nUsing RPC URL:\n${RPC_URL}`);
+    console.log(`\nPumping with: \n${PRIVATE_KEY}\n\n`);
     await mainMenu();
 
   } catch (error) {
