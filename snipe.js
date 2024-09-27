@@ -6,13 +6,28 @@ const {
   PublicKey,
   LAMPORTS_PER_SOL,
   sendAndConfirmTransaction,
+  SystemProgram,
 } = require('@solana/web3.js');
+
 const {
   getOrCreateAssociatedTokenAccount,
-  createTransferInstruction,
+  createInitializeAccountInstruction,
+  createCloseAccountInstruction,
+  TOKEN_PROGRAM_ID,
+  ACCOUNT_SIZE, // Import ACCOUNT_SIZE constant
 } = require('@solana/spl-token');
+
+
 const RaydiumSDK = require('@raydium-io/raydium-sdk');
-const { Liquidity, NATIVE_SOL } = RaydiumSDK;
+const {
+  findPoolKeysByMints, 
+  Liquidity,
+  LIQUIDITY_POOLS,
+  LIQUIDITY_PROGRAM_ID_V4,
+  LIQUIDITY_STATE_LAYOUT_V4,
+  TokenAmount,
+  Percent,
+} = require('@raydium-io/raydium-sdk');
 const express = require('express');
 const { json } = require('body-parser');
 const axios = require('axios');
@@ -22,29 +37,49 @@ const BN = require('bn.js'); // BigNumber library for handling large integers
 
 const PORT = process.env.PORT || 3000;
 const JITO_ENDPOINT = process.env.JITO_ENDPOINT || 'https://api.jito.wtf/';
-const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com';
+const RPC_URL = process.env.RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY; // Base58 encoded
-const BUY_AMOUNT_SOL = parseFloat(process.env.BUY_AMOUNT_SOL) || 1; // Amount of SOL to spend on the meme coin
+const WSOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
 
-// Load wallet
 if (!PRIVATE_KEY) {
   throw new Error('PRIVATE_KEY is not set in environment variables');
 }
 
 const secretKey = bs58.decode(PRIVATE_KEY);
 const wallet = Keypair.fromSecretKey(secretKey);
+const connection = new Connection(RPC_URL, 'confirmed');
 
-// Function to fetch token metadata with fallback and retry
 async function getTokenMetadata(mintAddress) {
-  const solscanUrl = `https://public-api.solscan.io/token/meta?tokenAddress=${mintAddress}`;
+  const heliusUrl = `https://api.helius.xyz/v0/tokens/metadata?api-key=${process.env.HELIUS_API_KEY}`;  // API URL with your Helius API key
+
   try {
-    const response = await axios.get(solscanUrl, { timeout: 5000 });
-    return response.data;
+    // Prepare the request payload
+    const data = {
+      mintAccounts: [mintAddress]
+    };
+
+    // Make the API call to Helius
+    const response = await axios.post(heliusUrl, data, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 5000
+    });
+
+    // Check if the response contains data
+    if (response.data && response.data.length > 0) {
+      return response.data[0]; // Return the metadata for the token
+    } else {
+      console.error('No metadata found for the given mint address.');
+      return {};
+    }
+
   } catch (error) {
-    console.error('Error fetching token metadata:', error.message);
+    console.error('Error fetching token metadata from Helius API:', error.message);
+    return {}; // Return empty object on failure
   }
-  return {}; // Default to an empty object if the request fails
 }
+
 
 async function mainMenu() {
   const { select, input, Separator } = await import('@inquirer/prompts');
@@ -81,7 +116,8 @@ async function mainMenu() {
     ],
   });
 
-  if (answer === 'buy_token' || answer === 'sell_token') {
+  if (answer === 'buy_token') {
+
     // Ask the user for the token address
     const tokenMint = await input({
       message: 'Please enter the token address (mint):',
@@ -91,20 +127,87 @@ async function mainMenu() {
       }
     });
 
-    if (answer === 'buy_token') {
-      await swapToken(tokenMint, null, 'raydium', 'buy', true);
-    } else if (answer === 'sell_token') {
-      await swapToken(tokenMint, null, 'raydium', 'sell', true);
+    // Retrieve and display token info
+    const tokenMetadata = await getTokenMetadata(tokenMint);
+    const mintAddress = new PublicKey(tokenMint);
+    const tokenAccount = await getOrCreateAssociatedTokenAccount(
+      connection,
+      wallet,
+      mintAddress,
+      wallet.publicKey
+    );
+  
+    if (tokenMetadata && tokenAccount) {
+      console.log(`Token Name: ${tokenMetadata.onChainData.data.name}`);
+      console.log(`Symbol: ${tokenMetadata.onChainData.data.symbol}`);
+      console.log(`Is Frozen: `, tokenAccount.isFrozen);
+    } else {
+      console.error('Could not fetch token metadata.');
+      await mainMenu(); // Return to menu if no metadata found
+      return;
     }
 
-    await mainMenu(); // Re-run menu after Buy/Sell
+    // Ask for the amount of SOL to spend for the token
+    const transferAmount = await input({
+      message: 'Please enter the amount of SOL to spend on the token:',
+      validate(value) {
+        const valid = !isNaN(value) && parseFloat(value) > 0;
+        return valid || 'Please enter a valid amount of SOL.';
+      }
+    });
+
+    // Initiate the swap (buy)
+    await swapToken(tokenMint, null, 'raydium', 'buy', true, parseFloat(transferAmount));
+
+    await mainMenu(); // Re-run menu after buying
+
+  } else if (answer === 'sell_token') {
+    // Ask the user for the token address
+    const tokenMint = await input({
+      message: 'Please enter the token address (mint):',
+      validate(value) {
+        const valid = value.length === 44 || value.length === 43;
+        return valid || 'Please enter a valid Solana token address.';
+      }
+    });
+
+    // Retrieve and display token info
+    const tokenMetadata = await getTokenMetadata(tokenMint);
+    const mintAddress = new PublicKey(tokenMint);
+    const tokenAccount = await getOrCreateAssociatedTokenAccount(
+      connection,
+      wallet,
+      mintAddress,
+      wallet.publicKey
+    );
+  
+    if (tokenMetadata && tokenAccount) {
+      console.log(`Token Name: ${tokenMetadata.onChainData.data.name}`);
+      console.log(`Symbol: ${tokenMetadata.onChainData.data.symbol}`);
+      console.log(`Is Frozen: `, tokenAccount.isFrozen);
+    } else {
+      console.error('Could not fetch token metadata.');
+      await mainMenu(); // Return to menu if no metadata found
+      return;
+    }
+
+    // Ask for the amount of tokens to sell
+    const transferAmount = await input({
+      message: 'Please enter the number of tokens to sell:',
+      validate(value) {
+        const valid = !isNaN(value) && parseFloat(value) > 0;
+        return valid || 'Please enter a valid number of tokens.';
+      }
+    });
+
+    // Initiate the swap (sell)
+    await swapToken(tokenMint, null, 'raydium', 'sell', true, parseFloat(transferAmount));
+    await mainMenu(); // Re-run menu after selling
 
   } else if (answer === 'start_sniper') {
-    // Start the sniper and do not re-run the menu
-    await startSniper();
+    await startSniper(); // Start the sniper process
 
   } else if (answer === 'token_metadata') {
-
     const tokenMint = await input({
       message: 'Please enter the token address (mint) to fetch metadata:',
       validate(value) {
@@ -112,6 +215,7 @@ async function mainMenu() {
         return valid || 'Please enter a valid Solana token address.';
       }
     });
+
     const metadata = await getTokenMetadata(tokenMint);
     console.log(metadata);
 
@@ -123,18 +227,15 @@ async function mainMenu() {
   }
 }
 
-
 async function swapToken(
   tokenMint,
   poolAddress = null,
   exchange = 'raydium',
   direction = 'sell',
-  USE_JITO = false
+  USE_JITO = false,
+  transferAmount = 0.0
 ) {
-  const connection = new Connection(RPC_URL, 'confirmed');
   const mintAddress = new PublicKey(tokenMint);
-
-  // Get or create associated token account for the token
   const tokenAccount = await getOrCreateAssociatedTokenAccount(
     connection,
     wallet,
@@ -142,108 +243,177 @@ async function swapToken(
     wallet.publicKey
   );
 
-  // Fetch pool keys depending on the exchange
+  console.log('Token Account Found:', tokenAccount.address.toBase58());
+
   let poolKeys;
-  if (exchange === 'pump_fun') {
-    if (!poolAddress) {
-      console.error('Pump Fun pool address is required for Pump Fun exchange.');
+
+  if (exchange === 'raydium') {
+    // Use the helper function to directly fetch pool keys based on mints
+    poolKeys = await findPoolKeysByMints({
+      baseMint: mintAddress,  // Your token's mint address
+      quoteMint: WSOL_MINT,   // The WSOL mint address
+      connection,
+      version: 4,             // Ensure to use the correct version
+    });
+
+    if (!poolKeys) {
+      console.error('No liquidity pool found for the token');
       return;
     }
-    // Use predefined Pump Fun pool address
-    poolKeys = await Liquidity.fetchPoolKeysByPoolId(
-      connection,
-      new PublicKey(poolAddress)
-    );
-  } else if (exchange === 'raydium') {
-    // For meme coins, fetch all pools and find the relevant one
-    const allPools = await Liquidity.fetchAllPoolKeys(connection);
-    poolKeys = Object.values(allPools).find(
-      (pool) =>
-        (pool.baseMint.equals(mintAddress) &&
-          pool.quoteMint.equals(NATIVE_SOL.mint)) ||
-        (pool.quoteMint.equals(mintAddress) &&
-          pool.baseMint.equals(NATIVE_SOL.mint))
-    );
-  } else {
-    console.error(`Unknown exchange: ${exchange}`);
-    return;
   }
 
-  if (!poolKeys) {
-    console.error('Could not find pool keys for the token');
-    return;
-  }
+  console.log('Pool Keys Found:', poolKeys.id.toBase58());
 
-  let inputAccount;
-  let outputAccount;
-  let amountIn;
+  // Fetch pool info
+  const poolInfo = await Liquidity.fetchInfo({
+    connection,
+    poolKeys,
+    programId: LIQUIDITY_PROGRAM_ID_V4,
+    layout: LIQUIDITY_STATE_LAYOUT_V4,
+  });
+
+  let inputAccount, outputAccount, amountIn, decimals, fixedSide, wrappedSolAccount;
+  const preInstructions = [];
+  const postInstructions = [];
+  const signers = [];
 
   if (direction === 'buy') {
-    // For buying, input is SOL, output is token
-    inputAccount = wallet.publicKey; // User's SOL account
-    outputAccount = tokenAccount.address; // User's token account
+    // Swapping SOL for Token
+    wrappedSolAccount = Keypair.generate();
+    signers.push(wrappedSolAccount);
 
-    // Amount in SOL, converted to lamports
-    amountIn = new BN(BUY_AMOUNT_SOL * LAMPORTS_PER_SOL);
-  } else if (direction === 'sell') {
-    // For selling, input is token, output is SOL
-    inputAccount = tokenAccount.address; // User's token account
-    outputAccount = wallet.publicKey; // User's SOL account
+    // Create WSOL account
+    const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
+    const lamportsForWSOL = transferAmount * LAMPORTS_PER_SOL + rentExemptLamports;
 
-    // Fetch the amount of tokens to sell (balance in the token account)
-    const tokenAccountInfo = await connection.getTokenAccountBalance(
-      tokenAccount.address
+    preInstructions.push(
+      SystemProgram.createAccount({
+        fromPubkey: wallet.publicKey,
+        newAccountPubkey: wrappedSolAccount.publicKey,
+        lamports: lamportsForWSOL,
+        space: ACCOUNT_SIZE,
+        programId: TOKEN_PROGRAM_ID,
+      }),
+      createInitializeAccountInstruction(
+        wrappedSolAccount.publicKey,
+        WSOL_MINT,
+        wallet.publicKey
+      )
     );
-    amountIn = new BN(tokenAccountInfo.value.amount);
 
-    if (amountIn.isZero()) {
-      console.error('No tokens to sell');
+    // Close WSOL account after swap
+    postInstructions.push(
+      createCloseAccountInstruction(
+        wrappedSolAccount.publicKey,
+        wallet.publicKey,
+        wallet.publicKey
+      )
+    );
+
+    inputAccount = wrappedSolAccount.publicKey;
+    outputAccount = tokenAccount.address;
+    decimals = 9; // SOL has 9 decimals
+    const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
+    amountIn = new TokenAmount(new BN(amountInLamports), decimals);
+    fixedSide = 'in';
+  } else if (direction === 'sell') {
+    // Swapping Token for SOL
+    wrappedSolAccount = Keypair.generate();
+    signers.push(wrappedSolAccount);
+
+    // Create temporary WSOL account to receive SOL
+    const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
+    preInstructions.push(
+      SystemProgram.createAccount({
+        fromPubkey: wallet.publicKey,
+        newAccountPubkey: wrappedSolAccount.publicKey,
+        lamports: rentExemptLamports,
+        space: ACCOUNT_SIZE,
+        programId: TOKEN_PROGRAM_ID,
+      }),
+      createInitializeAccountInstruction(
+        wrappedSolAccount.publicKey,
+        WSOL_MINT,
+        wallet.publicKey
+      )
+    );
+
+    // Close WSOL account after swap (unwrap SOL)
+    postInstructions.push(
+      createCloseAccountInstruction(
+        wrappedSolAccount.publicKey,
+        wallet.publicKey,
+        wallet.publicKey
+      )
+    );
+
+    inputAccount = tokenAccount.address;
+    outputAccount = wrappedSolAccount.publicKey;
+
+    // Get token decimals
+    const mintInfo = await connection.getParsedAccountInfo(mintAddress);
+    decimals = mintInfo.value.data.parsed.info.decimals;
+
+    // Convert transfer amount to smallest units
+    const amountInUnits = transferAmount * Math.pow(10, decimals);
+    amountIn = new TokenAmount(new BN(amountInUnits), decimals);
+    fixedSide = 'in';
+
+    // Check if you have enough tokens
+    const tokenBalance = await connection.getTokenAccountBalance(inputAccount);
+    const balance = parseFloat(tokenBalance.value.amount);
+
+    if (balance < amountInUnits) {
+      console.error('Insufficient token balance to sell');
       return;
     }
-  } else {
-    console.error(`Invalid direction: ${direction}`);
-    return;
   }
 
-  // Create swap transaction
-  const { transaction, signers } = await Liquidity.makeSwapTransaction({
+  // Set slippage tolerance (e.g., 1%)
+  const slippage = new Percent(1, 100);
+
+  // Create swap instruction
+  const { instructions: swapInstructions, signers: swapSigners } = await Liquidity.makeSwapInstruction({
     connection,
     poolKeys,
     userKeys: {
-      owner: wallet.publicKey,
       tokenAccounts: {
         input: inputAccount,
         output: outputAccount,
       },
+      owner: wallet.publicKey,
+      wrappedSolAccount: wrappedSolAccount ? wrappedSolAccount.publicKey : undefined,
     },
-    amountIn: amountIn,
-    amountOut: new BN(0),
-    fixedSide: 'in',
+    amountIn,
+    fixedSide,
+    slippage,
   });
+  
+  console.log('Pre-instructions:', preInstructions);
+  console.log('Swap instructions:', swapInstructions);
+  console.log('Post-instructions:', postInstructions);
+  console.log('Signers:', signers);
+  // Combine all instructions and signers
+  const transaction = new Transaction();
+  transaction.add(...preInstructions, ...swapInstructions, ...postInstructions);
 
   transaction.feePayer = wallet.publicKey;
 
+  signers.push(...swapSigners);
+
   if (USE_JITO) {
-    // Add tip instruction to incentivize processing
     addTipInstruction(transaction);
   }
 
-  // Fetch recent blockhash
   const { blockhash } = await connection.getLatestBlockhash('confirmed');
   transaction.recentBlockhash = blockhash;
-
-  // Sign the transaction
-  transaction.sign(wallet, ...signers);
+  transaction.sign(...[wallet, ...signers]);
 
   if (USE_JITO) {
-    // Serialize the transaction
     const serializedTransaction = transaction.serialize();
-    const base58EncodedTransaction = serializedTransaction.toString('base58');
-
-    // Send the bundle to Jito
-    await sendBundleToJito([base58EncodedTransaction]);
+    const base64EncodedTransaction = serializedTransaction.toString('base64');
+    await sendBundleToJito([base64EncodedTransaction]);
   } else {
-    // Send the transaction via standard Solana RPC
     try {
       const txid = await sendAndConfirmTransaction(
         connection,
@@ -251,12 +421,16 @@ async function swapToken(
         [wallet, ...signers],
         { commitment: 'confirmed' }
       );
-      console.log(`${direction.charAt(0).toUpperCase() + direction.slice(1)} transaction sent:`, txid);
+      console.log(
+        `${direction.charAt(0).toUpperCase() + direction.slice(1)} transaction sent:`,
+        txid
+      );
     } catch (error) {
-      console.error(`Error sending ${direction} transaction:`, error.message);
+      console.error(`Error sending ${direction} transaction:`, error);
     }
   }
 }
+
 
 async function sendBundleToJito(transactions) {
   try {
