@@ -1,4 +1,4 @@
-// CommonJS Imports
+const fs = require('fs'); 
 const {
   Keypair,
   Connection,
@@ -17,17 +17,15 @@ const {
   ACCOUNT_SIZE, // Import ACCOUNT_SIZE constant
 } = require('@solana/spl-token');
 
-
-const RaydiumSDK = require('@raydium-io/raydium-sdk');
 const {
-  findPoolKeysByMints, 
   Liquidity,
   LIQUIDITY_POOLS,
-  LIQUIDITY_PROGRAM_ID_V4,
+  /*LIQUIDITY_PROGRAM_ID_V4,*/
   LIQUIDITY_STATE_LAYOUT_V4,
   TokenAmount,
   Percent,
 } = require('@raydium-io/raydium-sdk');
+
 const express = require('express');
 const { json } = require('body-parser');
 const axios = require('axios');
@@ -40,6 +38,7 @@ const JITO_ENDPOINT = process.env.JITO_ENDPOINT || 'https://api.jito.wtf/';
 const RPC_URL = process.env.RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY; // Base58 encoded
 const WSOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
+const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey('RVKd61ztZW9P9AwAcSxbgTwzqa8SrAUghEeTzcMXkJb');
 
 if (!PRIVATE_KEY) {
   throw new Error('PRIVATE_KEY is not set in environment variables');
@@ -48,6 +47,8 @@ if (!PRIVATE_KEY) {
 const secretKey = bs58.decode(PRIVATE_KEY);
 const wallet = Keypair.fromSecretKey(secretKey);
 const connection = new Connection(RPC_URL, 'confirmed');
+//const RAYDIUM_AMM_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
+const RAYDIUM_AMM_PROGRAM_ID = 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C';
 
 async function getTokenMetadata(mintAddress) {
   const heliusUrl = `https://api.helius.xyz/v0/tokens/metadata?api-key=${process.env.HELIUS_API_KEY}`;  // API URL with your Helius API key
@@ -68,6 +69,8 @@ async function getTokenMetadata(mintAddress) {
 
     // Check if the response contains data
     if (response.data && response.data.length > 0) {
+      console.log("token data", response.data);
+      console.log("Onchain data", response.data[0].onChainData);
       return response.data[0]; // Return the metadata for the token
     } else {
       console.error('No metadata found for the given mint address.');
@@ -127,22 +130,23 @@ async function mainMenu() {
       }
     });
 
-    // Retrieve and display token info
-    const tokenMetadata = await getTokenMetadata(tokenMint);
     const mintAddress = new PublicKey(tokenMint);
+    const tokenMetadata = await getTokenMetadata(tokenMint);
     const tokenAccount = await getOrCreateAssociatedTokenAccount(
       connection,
       wallet,
       mintAddress,
       wallet.publicKey
     );
-  
-    if (tokenMetadata && tokenAccount) {
+    
+    // Retrieve and display token info
+    if (tokenAccount && tokenMetadata && mintAddress) {
       console.log(`Token Name: ${tokenMetadata.onChainData.data.name}`);
       console.log(`Symbol: ${tokenMetadata.onChainData.data.symbol}`);
       console.log(`Is Frozen: `, tokenAccount.isFrozen);
+      console.log(`Mint Address: ${mintAddress.toBase58()}`);
     } else {
-      console.error('Could not fetch token metadata.');
+      console.error('Could not fetch token data.');
       await mainMenu(); // Return to menu if no metadata found
       return;
     }
@@ -157,9 +161,8 @@ async function mainMenu() {
     });
 
     // Initiate the swap (buy)
-    await swapToken(tokenMint, null, 'raydium', 'buy', true, parseFloat(transferAmount));
-
-    await mainMenu(); // Re-run menu after buying
+    await swapToken(tokenAccount, tokenMint, mintAddress, null, 'raydium', 'buy', true, parseFloat(transferAmount));
+    await mainMenu(); // Re-run menu after buyin
 
   } else if (answer === 'sell_token') {
     // Ask the user for the token address
@@ -181,12 +184,13 @@ async function mainMenu() {
       wallet.publicKey
     );
   
-    if (tokenMetadata && tokenAccount) {
+    if (tokenMetadata && tokenAccount && mintAddress) {
       console.log(`Token Name: ${tokenMetadata.onChainData.data.name}`);
       console.log(`Symbol: ${tokenMetadata.onChainData.data.symbol}`);
       console.log(`Is Frozen: `, tokenAccount.isFrozen);
+      console.log(`Mint Address: ${mintAddress.toBase58()}`);
     } else {
-      console.error('Could not fetch token metadata.');
+      console.error('Could not fetch token data.');
       await mainMenu(); // Return to menu if no metadata found
       return;
     }
@@ -201,7 +205,7 @@ async function mainMenu() {
     });
 
     // Initiate the swap (sell)
-    await swapToken(tokenMint, null, 'raydium', 'sell', true, parseFloat(transferAmount));
+    await swapToken(tokenAccount, tokenMint, null, 'raydium', 'sell', true, parseFloat(transferAmount));
     await mainMenu(); // Re-run menu after selling
 
   } else if (answer === 'start_sniper') {
@@ -227,39 +231,116 @@ async function mainMenu() {
   }
 }
 
+async function writeJsonToFile(jsonData, filePath) {
+  try {
+    const writeStream = fs.createWriteStream(filePath);
+
+    writeStream.write(JSON.stringify(jsonData, null, 2)); // Pretty prints the JSON with indentation
+    writeStream.end(); // Closes the stream
+
+    writeStream.on('finish', () => {
+      console.log(`${filePath} written successfully.`);
+    });
+
+    writeStream.on('error', (error) => {
+      console.error(`Error writing ${filePath}:`, error);
+    });
+
+  } catch (error) {
+    console.error(`Failed to write JSON to file: ${error.message}`);
+  }
+}
+
+async function writeJsonToFile(jsonData, filePath) {
+  try {
+    const writeStream = fs.createWriteStream(filePath);
+
+    writeStream.write(JSON.stringify(jsonData, null, 2)); // Pretty prints the JSON with indentation
+    writeStream.end(); // Closes the stream
+
+    writeStream.on('finish', () => {
+      console.log(`${filePath} written successfully.`);
+    });
+
+    writeStream.on('error', (error) => {
+      console.error(`Error writing ${filePath}:`, error);
+    });
+
+  } catch (error) {
+    console.error(`Failed to write JSON to file: ${error.message}`);
+  }
+}
+
 async function swapToken(
+  tokenAccount,
   tokenMint,
+  mintAddress,
   poolAddress = null,
   exchange = 'raydium',
   direction = 'sell',
   USE_JITO = false,
   transferAmount = 0.0
 ) {
-  const mintAddress = new PublicKey(tokenMint);
-  const tokenAccount = await getOrCreateAssociatedTokenAccount(
-    connection,
-    wallet,
-    mintAddress,
-    wallet.publicKey
-  );
 
-  console.log('Token Account Found:', tokenAccount.address.toBase58());
+  console.log("starting swap");
 
   let poolKeys;
-
   if (exchange === 'raydium') {
-    // Use the helper function to directly fetch pool keys based on mints
-    poolKeys = await findPoolKeysByMints({
-      baseMint: mintAddress,  // Your token's mint address
-      quoteMint: WSOL_MINT,   // The WSOL mint address
-      connection,
-      version: 4,             // Ensure to use the correct version
+
+    /*
+      const response = await axios.post("https://mainnet.helius-rpc.com/?api-key=0fddf501-568f-4ff6-839c-61a5645fd5b6", {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getProgramAccounts",
+        "params": [
+            RAYDIUM_AMM_PROGRAM_ID,  // Raydium AMM Program ID
+            {
+                "encoding": "jsonParsed",
+                "filters": [
+                    {
+                        "memcmp": {
+                            "offset": 0,  // Adjust this based on tokenA mint position in the account data
+                            "bytes": mintAddress.toBase58()   // Your token mint address to filter by
+                        }
+                    }
+                ]
+            }
+        ]
     });
 
-    if (!poolKeys) {
-      console.error('No liquidity pool found for the token');
-      return;
+    console.log(response);
+    */
+
+    const response = await axios.get('https://api.raydium.io/v2/sdk/liquidity/mainnet.json');
+    const allPools = response.data;
+    const officialPools = allPools.official;
+    const unofficialPools = allPools.unOfficial;
+
+    const url = 'https://api.raydium.io/v2/sdk/liquidity/mainnet.json';
+    const filePath = './mainnet.json';
+    writeJsonToFile(officialPools, 'officialPools.json');
+    writeJsonToFile(unofficialPools, 'unofficialPools.json');
+    console.log("Official Pools count", officialPools.length);
+    console.log("Unofficial Pools count", unofficialPools.length);
+
+    let targetPool = officialPools.find(pool =>
+      new PublicKey(pool.baseMint).equals(mintAddress) || 
+      new PublicKey(pool.quoteMint).equals(mintAddress)
+    );
+
+    if (!targetPool) {
+      targetPool = unofficialPools.find(pool =>
+        new PublicKey(pool.baseMint).equals(mintAddress) || 
+        new PublicKey(pool.quoteMint).equals(mintAddress)
+      );
     }
+
+    if (targetPool) {
+      console.log("Target pool found:", targetPool);
+    } else {
+      console.log("No pool found.");
+    }
+
   }
 
   console.log('Pool Keys Found:', poolKeys.id.toBase58());
@@ -496,7 +577,6 @@ async function startSniper() {
           console.log('Detected a meme coin!');
 
           // Fetch pool keys using Raydium SDK
-          const connection = new Connection(RPC_URL, 'confirmed');
           const allPools = await Liquidity.fetchAllPoolKeys(connection);
           const poolInfo = Object.values(allPools).find((pool) =>
               (pool.baseMint.equals(new PublicKey(newTokenMint)) &&
