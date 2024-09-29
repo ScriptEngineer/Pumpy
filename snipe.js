@@ -562,26 +562,31 @@ async function startSniper() {
           
           const targetBalanceChange = 6124800;
           const poolID = accountData.find(item => item.nativeBalanceChange === targetBalanceChange)?.account;
+          const poolPubKey = new PublicKey(poolID);
+          const poolAccountInfo = await connection.getAccountInfo(poolPubKey);
 
-          if (poolID) {
+          if (poolID && poolAccountInfo) {
             console.log("New token mint: ", newTokenMint);
             console.log("Pool ID: ", poolID);
-            const poolAccountInfo = await connection.getAccountInfo(new PublicKey(poolID));
             console.log("Pool Account Info: ", poolAccountInfo);
 
-            /*
-            poolKeys = await Liquidity.getAssociatedPoolKeys({
-              poolId: new PublicKey(poolID),
+            const poolKeys = await Liquidity.getAssociatedPoolKeys({
+              poolId: poolPubKey,
               programId: new PublicKey(LIQUIDITY_PROGRAM_ID_V4),
             });
-            */
 
+            if (poolKeys) {
+              console.log('Pool Keys Found:');
+              console.log(poolKeys.id.toBase58());
+            } else {
+              console.error('No pool keys found. :(');
+            }
       
           }
-  
         }
 
         res.status(200).send('Received');
+        
       } catch (error) {
         console.error('Error processing /ray webhook:', error.message);
         res.status(500).send('Error');
