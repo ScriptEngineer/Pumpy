@@ -26,6 +26,7 @@ const {
   Percent,
 } = require('@raydium-io/raydium-sdk');
 
+const JSONStream = require('JSONStream'); 
 const express = require('express');
 const { json } = require('body-parser');
 const axios = require('axios');
@@ -49,6 +50,53 @@ const wallet = Keypair.fromSecretKey(secretKey);
 const connection = new Connection(RPC_URL, 'confirmed');
 //const RAYDIUM_AMM_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
 const RAYDIUM_AMM_PROGRAM_ID = 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C';
+const tokenBought = false;
+
+async function writeJsonToFile(jsonData, filePath) {
+  try {
+    const writeStream = fs.createWriteStream(filePath);
+
+    writeStream.write(JSON.stringify(jsonData, null, 2)); // Pretty prints the JSON with indentation
+    writeStream.end(); // Closes the stream
+
+    writeStream.on('finish', () => {
+      console.log(`${filePath} written successfully.`);
+    });
+
+    writeStream.on('error', (error) => {
+      console.error(`Error writing ${filePath}:`, error);
+    });
+
+  } catch (error) {
+    console.error(`Failed to write JSON to file: ${error.message}`);
+  }
+}
+
+async function writeLargeJsonToFile(jsonData, filePath) {
+  try {
+    const writeStream = fs.createWriteStream(filePath);
+    const jsonStream = JSONStream.stringify('[\n', ',\n', '\n]\n');
+
+    jsonStream.pipe(writeStream);
+
+    for (const data of jsonData) {
+      jsonStream.write(data); // Write each object to the stream
+    }
+
+    jsonStream.end(); // Finish the stream
+
+    jsonStream.on('end', () => {
+      console.log(`${filePath} written successfully.`);
+    });
+
+    writeStream.on('error', (error) => {
+      console.error(`Error writing ${filePath}:`, error);
+    });
+
+  } catch (error) {
+    console.error(`Failed to write JSON to file: ${error.message}`);
+  }
+}
 
 async function getTokenMetadata(mintAddress) {
   const heliusUrl = `https://api.helius.xyz/v0/tokens/metadata?api-key=${process.env.HELIUS_API_KEY}`;  // API URL with your Helius API key
@@ -231,46 +279,6 @@ async function mainMenu() {
   }
 }
 
-async function writeJsonToFile(jsonData, filePath) {
-  try {
-    const writeStream = fs.createWriteStream(filePath);
-
-    writeStream.write(JSON.stringify(jsonData, null, 2)); // Pretty prints the JSON with indentation
-    writeStream.end(); // Closes the stream
-
-    writeStream.on('finish', () => {
-      console.log(`${filePath} written successfully.`);
-    });
-
-    writeStream.on('error', (error) => {
-      console.error(`Error writing ${filePath}:`, error);
-    });
-
-  } catch (error) {
-    console.error(`Failed to write JSON to file: ${error.message}`);
-  }
-}
-
-async function writeJsonToFile(jsonData, filePath) {
-  try {
-    const writeStream = fs.createWriteStream(filePath);
-
-    writeStream.write(JSON.stringify(jsonData, null, 2)); // Pretty prints the JSON with indentation
-    writeStream.end(); // Closes the stream
-
-    writeStream.on('finish', () => {
-      console.log(`${filePath} written successfully.`);
-    });
-
-    writeStream.on('error', (error) => {
-      console.error(`Error writing ${filePath}:`, error);
-    });
-
-  } catch (error) {
-    console.error(`Failed to write JSON to file: ${error.message}`);
-  }
-}
-
 async function swapToken(
   tokenAccount,
   tokenMint,
@@ -285,41 +293,15 @@ async function swapToken(
   console.log("starting swap");
 
   let poolKeys;
-  if (exchange === 'raydium') {
-
-    /*
-      const response = await axios.post("https://mainnet.helius-rpc.com/?api-key=0fddf501-568f-4ff6-839c-61a5645fd5b6", {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "getProgramAccounts",
-        "params": [
-            RAYDIUM_AMM_PROGRAM_ID,  // Raydium AMM Program ID
-            {
-                "encoding": "jsonParsed",
-                "filters": [
-                    {
-                        "memcmp": {
-                            "offset": 0,  // Adjust this based on tokenA mint position in the account data
-                            "bytes": mintAddress.toBase58()   // Your token mint address to filter by
-                        }
-                    }
-                ]
-            }
-        ]
-    });
-
-    console.log(response);
-    */
+  if (exchange === 'raydium' && !poolAddress) {
 
     const response = await axios.get('https://api.raydium.io/v2/sdk/liquidity/mainnet.json');
     const allPools = response.data;
     const officialPools = allPools.official;
     const unofficialPools = allPools.unOfficial;
 
-    const url = 'https://api.raydium.io/v2/sdk/liquidity/mainnet.json';
-    const filePath = './mainnet.json';
     writeJsonToFile(officialPools, 'officialPools.json');
-    writeJsonToFile(unofficialPools, 'unofficialPools.json');
+    writeLargeJsonToFile(unofficialPools, 'unofficialPools.json');
     console.log("Official Pools count", officialPools.length);
     console.log("Unofficial Pools count", unofficialPools.length);
 
@@ -358,7 +340,7 @@ async function swapToken(
   const postInstructions = [];
   const signers = [];
 
-  if (direction === 'buy') {
+  if (direction === 'buy' && !tokenBought) {
     // Swapping SOL for Token
     wrappedSolAccount = Keypair.generate();
     signers.push(wrappedSolAccount);
@@ -397,6 +379,7 @@ async function swapToken(
     const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
     amountIn = new TokenAmount(new BN(amountInLamports), decimals);
     fixedSide = 'in';
+
   } else if (direction === 'sell') {
     // Swapping Token for SOL
     wrappedSolAccount = Keypair.generate();
@@ -491,10 +474,13 @@ async function swapToken(
   transaction.sign(...[wallet, ...signers]);
 
   if (USE_JITO) {
+
     const serializedTransaction = transaction.serialize();
     const base64EncodedTransaction = serializedTransaction.toString('base64');
     await sendBundleToJito([base64EncodedTransaction]);
+
   } else {
+
     try {
       const txid = await sendAndConfirmTransaction(
         connection,
@@ -510,8 +496,8 @@ async function swapToken(
       console.error(`Error sending ${direction} transaction:`, error);
     }
   }
-}
 
+}
 
 async function sendBundleToJito(transactions) {
   try {
@@ -585,19 +571,23 @@ async function startSniper() {
                 pool.baseMint.equals(NATIVE_SOL.mint))
           );
 
-          /*
+          
           if (poolInfo) {
             console.log('Found liquidity pool for the meme coin');
+            
+            /*
             await swapToken(newTokenMint, null, 'raydium', 'buy', true);
             console.log(`Scheduling to sell the token in ${SELL_DELAY_MS / 1000} seconds.`);
             setTimeout(async () => {
               console.log('Attempting to sell the token now.');
               await swapToken(newTokenMint, poolInfo.id, 'raydium', 'sell', USE_JITO_FOR_SELL);
             }, SELL_DELAY_MS);
+            */
+
           } else {
             console.log('No liquidity pool found for the meme coin');
           }
-          */
+          
 
         }
 
