@@ -20,7 +20,6 @@ const {
 const {
   Liquidity,
   LIQUIDITY_POOLS,
-  LIQUIDITY_PROGRAM_ID_V4,
   LIQUIDITY_STATE_LAYOUT_V4,
   TokenAmount,
   Percent,
@@ -47,6 +46,7 @@ const secretKey = bs58.decode(PRIVATE_KEY);
 const wallet = Keypair.fromSecretKey(secretKey);
 const connection = new Connection(RPC_URL, 'confirmed');
 //const RAYDIUM_AMM_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
+const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey('5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS');
 const RAYDIUM_SWAP_PROGRAM = '5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS';
 const tokenBought = false;
 
@@ -206,7 +206,6 @@ async function mainMenu() {
     });
 
     // Initiate the swap (buy)
-    await swapToken(tokenAccount, tokenMint, mintAddress, null, 'raydium', 'buy', true, parseFloat(transferAmount));
     await mainMenu(); // Re-run menu after buyin
 
   } else if (answer === 'sell_token') {
@@ -250,7 +249,6 @@ async function mainMenu() {
     });
 
     // Initiate the swap (sell)
-    await swapToken(tokenAccount, tokenMint, null, 'raydium', 'sell', true, parseFloat(transferAmount));
     await mainMenu(); // Re-run menu after selling
 
   } else if (answer === 'start_sniper') {
@@ -275,7 +273,7 @@ async function mainMenu() {
     process.exit(0);
   }
 }
-
+/*
 async function swapToken(
   tokenAccount,
   tokenMint,
@@ -495,7 +493,7 @@ async function swapToken(
   }
 
 }
-
+*/
 async function sendBundleToJito(transactions) {
   try {
     const payload = {
@@ -551,47 +549,69 @@ async function startSniper() {
         if (data.source === 'RAYDIUM') {
           console.log('RAYDIUM LIQUIDITY POOL CREATED');
 
-          /*console.log(data);*/
           const tokenTransfers = data.tokenTransfers;
           const accountData = data.accountData;
-          let newTokenMint = tokenTransfers[0].mint;
+          let newTokenMint = tokenTransfers[0]?.mint;
 
-          if (newTokenMint == "So11111111111111111111111111111111111111112") {
-            newTokenMint = tokenTransfers[1].mint;
+          if (newTokenMint === "So11111111111111111111111111111111111111112") {
+            newTokenMint = tokenTransfers[1]?.mint;
           }
-          
+
           const targetBalanceChange = 6124800;
-          const poolID = accountData.find(item => item.nativeBalanceChange === targetBalanceChange)?.account;
+          const poolID = accountData.find(
+            (item) => item.nativeBalanceChange === targetBalanceChange
+          )?.account;
+
+          if (!poolID) {
+            console.error('poolID is undefined.');
+            res.status(500).send('Error');
+            return;
+          }
+
           const poolPubKey = new PublicKey(poolID);
           const poolAccountInfo = await connection.getAccountInfo(poolPubKey);
 
-          if (poolID && poolAccountInfo) {
+          if (poolAccountInfo) {
             console.log("New token mint: ", newTokenMint);
             console.log("Pool ID: ", poolID);
             console.log("Pool Account Info: ", poolAccountInfo);
 
+            // Debugging statements
+            console.log('poolPubKey:', poolPubKey?.toBase58());
+            console.log('LIQUIDITY_PROGRAM_ID_V4:', LIQUIDITY_PROGRAM_ID_V4?.toBase58());
+
+            // Ensure variables are defined
+            if (!poolPubKey || !LIQUIDITY_PROGRAM_ID_V4) {
+              console.error('poolPubKey or LIQUIDITY_PROGRAM_ID_V4 is undefined.');
+              res.status(500).send('Error');
+              return;
+            }
+
             const poolKeys = await Liquidity.getAssociatedPoolKeys({
               poolId: poolPubKey,
-              programId: new PublicKey(LIQUIDITY_PROGRAM_ID_V4),
+              programId: LIQUIDITY_PROGRAM_ID_V4,
             });
 
             if (poolKeys) {
-              console.log('Pool Keys Found:');
-              console.log(poolKeys.id.toBase58());
+              console.log('Pool Keys Found:', poolKeys.id.toBase58());
+
+              // Proceed to call swapToken here if needed
+              // ...
             } else {
               console.error('No pool keys found. :(');
             }
-      
+          } else {
+            console.error('poolAccountInfo is undefined.');
           }
         }
 
         res.status(200).send('Received');
-        
       } catch (error) {
         console.error('Error processing /ray webhook:', error.message);
         res.status(500).send('Error');
       }
     });
+
 
     app.post('/pumpkins', async (req, res) => {
       try {
@@ -620,16 +640,6 @@ async function startSniper() {
 
         console.log('Initial SOL Liquidity: ', initialSol);
         console.log('Initial Tokens Liquidity: ', initialTokens);
-
-        /*
-        await swapToken(tokenMint, 'pump_fun', 'pump_fun', 'buy', true);
-
-        console.log(`Scheduling to sell the token in ${SELL_DELAY_MS / 1000} seconds.`);
-        setTimeout(async () => {
-          console.log('Attempting to sell the token now.');
-          await swapToken(tokenMint, 'pump_fun', 'pump_fun', 'sell', USE_JITO_FOR_SELL);
-        }, SELL_DELAY_MS);
-        */
 
         res.status(200).send('Received');
         
