@@ -20,7 +20,7 @@ const {
 const {
   Liquidity,
   LIQUIDITY_POOLS,
-  /*LIQUIDITY_PROGRAM_ID_V4,*/
+  LIQUIDITY_PROGRAM_ID_V4,
   LIQUIDITY_STATE_LAYOUT_V4,
   TokenAmount,
   Percent,
@@ -39,8 +39,6 @@ const JITO_ENDPOINT = process.env.JITO_ENDPOINT || 'https://api.jito.wtf/';
 const RPC_URL = process.env.RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY; // Base58 encoded
 const WSOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
-const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey('RVKd61ztZW9P9AwAcSxbgTwzqa8SrAUghEeTzcMXkJb');
-
 if (!PRIVATE_KEY) {
   throw new Error('PRIVATE_KEY is not set in environment variables');
 }
@@ -49,7 +47,7 @@ const secretKey = bs58.decode(PRIVATE_KEY);
 const wallet = Keypair.fromSecretKey(secretKey);
 const connection = new Connection(RPC_URL, 'confirmed');
 //const RAYDIUM_AMM_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
-const RAYDIUM_AMM_PROGRAM_ID = 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C';
+const RAYDIUM_SWAP_PROGRAM = '5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS';
 const tokenBought = false;
 
 async function writeJsonToFile(jsonData, filePath) {
@@ -130,7 +128,6 @@ async function getTokenMetadata(mintAddress) {
     return {}; // Return empty object on failure
   }
 }
-
 
 async function mainMenu() {
   const { select, input, Separator } = await import('@inquirer/prompts');
@@ -569,6 +566,14 @@ async function startSniper() {
           if (poolID) {
             console.log("New token mint: ", newTokenMint);
             console.log("Pool ID: ", poolID);
+            const poolPubKey = new PublicKey(poolId);
+            console.log("Pool Pub Key: ", poolPubKey);
+            poolKeys = await Liquidity.getAssociatedPoolKeys({
+              poolId: poolPubKey,
+              programId: LIQUIDITY_PROGRAM_ID_V4,
+            });
+
+            console.log('Pool Keys Found:', poolKeys.id.toBase58());
           }
   
         }
