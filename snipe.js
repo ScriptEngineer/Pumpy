@@ -554,7 +554,7 @@ async function startSniper() {
         if (data.source === 'RAYDIUM') {
           console.log('RAYDIUM LIQUIDITY POOL CREATED');
 
-          console.log(data);
+          /*console.log(data);*/
           const tokenTransfers = data.tokenTransfers;
           const accountData = data.accountData;
           let newTokenMint = tokenTransfers[0].mint;
