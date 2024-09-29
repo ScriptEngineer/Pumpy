@@ -556,39 +556,21 @@ async function startSniper() {
 
           console.log(data);
           const tokenTransfers = data.tokenTransfers;
-          const newTokenMint = tokenTransfers[0].mint;
-          console.log('New token mint: ', newTokenMint);
-          const tokenMetadata = await getTokenMetadata(newTokenMint);
+          const accountData = data.accountData;
+          let newTokenMint = tokenTransfers[0].mint;
 
-          console.log('Detected a meme coin!');
-
-          // Fetch pool keys using Raydium SDK
-          const allPools = await Liquidity.fetchAllPoolKeys(connection);
-          const poolInfo = Object.values(allPools).find((pool) =>
-              (pool.baseMint.equals(new PublicKey(newTokenMint)) &&
-                pool.quoteMint.equals(NATIVE_SOL.mint)) ||
-              (pool.quoteMint.equals(new PublicKey(newTokenMint)) &&
-                pool.baseMint.equals(NATIVE_SOL.mint))
-          );
-
-          
-          if (poolInfo) {
-            console.log('Found liquidity pool for the meme coin');
-            
-            /*
-            await swapToken(newTokenMint, null, 'raydium', 'buy', true);
-            console.log(`Scheduling to sell the token in ${SELL_DELAY_MS / 1000} seconds.`);
-            setTimeout(async () => {
-              console.log('Attempting to sell the token now.');
-              await swapToken(newTokenMint, poolInfo.id, 'raydium', 'sell', USE_JITO_FOR_SELL);
-            }, SELL_DELAY_MS);
-            */
-
-          } else {
-            console.log('No liquidity pool found for the meme coin');
+          if (newTokenMint == "So11111111111111111111111111111111111111112") {
+            newTokenMint = tokenTransfers[1].mint;
           }
           
+          const targetBalanceChange = 6124800;
+          const poolID = accountData.find(item => item.nativeBalanceChange === targetBalanceChange)?.account;
 
+          if (poolID) {
+            console.log("New token mint: ", newTokenMint);
+            console.log("Pool ID: ", poolID);
+          }
+  
         }
 
         res.status(200).send('Received');
