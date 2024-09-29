@@ -566,7 +566,7 @@ async function startSniper() {
           if (poolID) {
             console.log("New token mint: ", newTokenMint);
             console.log("Pool ID: ", poolID);
-            const poolPubKey = new PublicKey(poolId);
+            const poolPubKey = new PublicKey(poolID);
             console.log("Pool Pub Key: ", poolPubKey);
             poolKeys = await Liquidity.getAssociatedPoolKeys({
               poolId: poolPubKey,
