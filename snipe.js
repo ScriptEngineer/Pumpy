@@ -500,7 +500,7 @@ async function swapToken(
 */
 
 function isValidPublicKeyData(data) {
-  return data && data.toBase58() !== '11111111111111111111111111111111';
+  return data instanceof PublicKey && data.toBase58() !== '11111111111111111111111111111111';
 }
 
 async function sendBundleToJito(transactions) {
@@ -593,10 +593,10 @@ async function startSniper() {
 
           console.log("Getting market account...");
           const marketAccount = await connection.getAccountInfo(poolData.marketId);
-          console.log(marketAccount)
+          /*console.log(marketAccount);*/
           console.log("Getting market state...")
           const marketState = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data);
-          console.log(marketState);
+          /*console.log(marketState);*/
     
           if (poolData && marketState) {
 
@@ -610,10 +610,10 @@ async function startSniper() {
             );
             console.log(marketAuthority);
 
+            /*
             console.log("\n");
             console.log("New token mint: ", newTokenMint);
             console.log("Pool ID: ", poolID);
-            /*console.log("Pool Data: ", poolData);*/
             console.log("Pool Base Mint: ", poolData.baseMint);
             console.log("Pool Quote Mint: ", poolData.quoteMint);
             console.log("Pool LP Mint: ", poolData.lpMint);
@@ -623,25 +623,26 @@ async function startSniper() {
             console.log("Pool Quote Vault: ", poolData.quoteVault);
             console.log("Pool Market Program ID: ", poolData.marketProgramId);
             console.log("Pool Market ID: ", poolData.marketId);
+            */
     
             // Construct the poolKeys object
             const poolKeys = {
               id: poolPubKey,
-              baseMint: isValidPublicKeyData(poolData.baseMint) ? new PublicKey(poolData.baseMint) : null,
-              quoteMint: isValidPublicKeyData(poolData.quoteMint) ? new PublicKey(poolData.quoteMint) : null,
-              lpMint: isValidPublicKeyData(poolData.lpMint) ? new PublicKey(poolData.lpMint) : null,
-              version: poolData.version !== undefined ? poolData.version : 4,
+              baseMint: poolData.baseMint,
+              quoteMint: poolData.quoteMint,
+              lpMint: poolData.lpMint,
+              version: 4,
               programId: LIQUIDITY_PROGRAM_ID_V4,
               authority: new PublicKey(
                 "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1",
               ),
-              openOrders: isValidPublicKeyData(poolData.openOrders) ? new PublicKey(poolData.openOrders) : null,
-              targetOrders: isValidPublicKeyData(poolData.targetOrders) ? new PublicKey(poolData.targetOrders) : null,
-              baseVault: isValidPublicKeyData(poolData.baseVault) ? new PublicKey(poolData.baseVault) : null,
-              quoteVault: isValidPublicKeyData(poolData.quoteVault) ? new PublicKey(poolData.quoteVault) : null,
+              openOrders: poolData.openOrders,
+              targetOrders: poolData.targetOrders,
+              baseVault: poolData.baseVault,
+              quoteVault: poolData.quoteVault,
               marketVersion: 3,
-              marketProgramId: isValidPublicKeyData(poolData.marketProgramId) ? new PublicKey(poolData.marketProgramId) : null,
-              marketId: isValidPublicKeyData(poolData.marketId) ? new PublicKey(poolData.marketId) : null,             
+              marketProgramId: poolData.marketProgramId,
+              marketId: poolData.marketId,             
               marketBids: marketState.bids,
               marketAsks: marketState.asks,
               marketEventQueue: marketState.eventQueue,
