@@ -589,6 +589,7 @@ async function startSniper() {
 
             // Parse the pool account data
             const poolData = LIQUIDITY_STATE_LAYOUT_V4.decode(poolAccountInfo.data);
+            console.log("Pool Data: ", poolData);
 
             // Construct the poolKeys object
             const poolKeys = {
