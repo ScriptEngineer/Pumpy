@@ -577,6 +577,7 @@ async function startSniper() {
             return;
           }
     
+          const tokenKey = new PublicKey(newTokenMint);
           const poolPubKey = new PublicKey(poolID);
           const poolAccountInfo = await connection.getAccountInfo(poolPubKey);
     
@@ -594,14 +595,13 @@ async function startSniper() {
               baseMint: isValidPublicKeyData(poolData.baseMint) ? new PublicKey(poolData.baseMint) : null,
               quoteMint: isValidPublicKeyData(poolData.quoteMint) ? new PublicKey(poolData.quoteMint) : null,
               lpMint: isValidPublicKeyData(poolData.lpMint) ? new PublicKey(poolData.lpMint) : null,
-              version: poolData.version,
+              version: poolData.version !== undefined ? poolData.version : 4,
               programId: LIQUIDITY_PROGRAM_ID_V4,
               authority: isValidPublicKeyData(poolData.authority) ? new PublicKey(poolData.authority) : null,
               openOrders: isValidPublicKeyData(poolData.openOrders) ? new PublicKey(poolData.openOrders) : null,
               targetOrders: isValidPublicKeyData(poolData.targetOrders) ? new PublicKey(poolData.targetOrders) : null,
               baseVault: isValidPublicKeyData(poolData.baseVault) ? new PublicKey(poolData.baseVault) : null,
               quoteVault: isValidPublicKeyData(poolData.quoteVault) ? new PublicKey(poolData.quoteVault) : null,
-              // We can skip withdrawQueue and lpVault as they are not needed for swaps
               marketVersion: 3,
               marketProgramId: isValidPublicKeyData(poolData.marketProgramId) ? new PublicKey(poolData.marketProgramId) : null,
               marketId: isValidPublicKeyData(poolData.marketId) ? new PublicKey(poolData.marketId) : null,
