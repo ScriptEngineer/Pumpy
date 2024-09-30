@@ -587,19 +587,9 @@ async function startSniper() {
               return;
             }
 
-            const poolKeys = await Liquidity.getAssociatedPoolKeys({
-              poolId: poolPubKey,
-              programId: LIQUIDITY_PROGRAM_ID_V4,
-            });
+            const poolKeys = await Liquidity.fetchPoolKeys(connection, poolPubKey);
+            console.log('Pool Keys:', poolKeys);
 
-            if (poolKeys) {
-              console.log('Pool Keys Found:', poolKeys.id.toBase58());
-
-              // Proceed to call swapToken here if needed
-              // ...
-            } else {
-              console.error('No pool keys found. :(');
-            }
           } else {
             console.error('poolAccountInfo is undefined.');
           }
