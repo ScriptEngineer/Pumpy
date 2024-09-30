@@ -48,7 +48,7 @@ const connection = new Connection(RPC_URL, 'confirmed');
 //const RAYDIUM_AMM_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
 const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey('5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS');
 const RAYDIUM_SWAP_PROGRAM = '5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS';
-const tokenBought = false;
+let tokenBought = false;
 
 async function writeJsonToFile(jsonData, filePath) {
   try {
@@ -550,52 +550,41 @@ async function startSniper() {
     app.post('/ray', async (req, res) => {
       try {
         const data = req.body[0];
-
+    
         if (data.source === 'RAYDIUM') {
           console.log('RAYDIUM LIQUIDITY POOL CREATED');
-
+    
           const tokenTransfers = data.tokenTransfers;
           const accountData = data.accountData;
           let newTokenMint = tokenTransfers[0]?.mint;
-
+    
+          // Adjust for SOL being the first token
           if (newTokenMint === "So11111111111111111111111111111111111111112") {
             newTokenMint = tokenTransfers[1]?.mint;
           }
-
+    
           const targetBalanceChange = 6124800;
           const poolID = accountData.find(
             (item) => item.nativeBalanceChange === targetBalanceChange
           )?.account;
-
+    
           if (!poolID) {
             console.error('poolID is undefined.');
             res.status(500).send('Error');
             return;
           }
-
+    
           const poolPubKey = new PublicKey(poolID);
           const poolAccountInfo = await connection.getAccountInfo(poolPubKey);
-
+    
           if (poolAccountInfo) {
             console.log("New token mint: ", newTokenMint);
             console.log("Pool ID: ", poolID);
-            console.log("Pool Account Info: ", poolAccountInfo);
-
-            // Debugging statements
-            console.log('poolPubKey:', poolPubKey?.toBase58());
-            console.log('LIQUIDITY_PROGRAM_ID_V4:', LIQUIDITY_PROGRAM_ID_V4?.toBase58());
-
-            // Ensure variables are defined
-            if (!poolPubKey || !LIQUIDITY_PROGRAM_ID_V4) {
-              console.error('poolPubKey or LIQUIDITY_PROGRAM_ID_V4 is undefined.');
-              res.status(500).send('Error');
-              return;
-            }
-
+    
             // Parse the pool account data
             const poolData = LIQUIDITY_STATE_LAYOUT_V4.decode(poolAccountInfo.data);
             console.log("Pool Data: ", poolData);
-
+    
             // Construct the poolKeys object
             const poolKeys = {
               id: poolPubKey,
@@ -609,26 +598,34 @@ async function startSniper() {
               targetOrders: isValidPublicKeyData(poolData.targetOrders) ? new PublicKey(poolData.targetOrders) : null,
               baseVault: isValidPublicKeyData(poolData.baseVault) ? new PublicKey(poolData.baseVault) : null,
               quoteVault: isValidPublicKeyData(poolData.quoteVault) ? new PublicKey(poolData.quoteVault) : null,
-              withdrawQueue: isValidPublicKeyData(poolData.withdrawQueue) ? new PublicKey(poolData.withdrawQueue) : null,
-              lpVault: isValidPublicKeyData(poolData.lpVault) ? new PublicKey(poolData.lpVault) : null,
+              // We can skip withdrawQueue and lpVault as they are not needed for swaps
               marketVersion: 3,
               marketProgramId: isValidPublicKeyData(poolData.marketProgramId) ? new PublicKey(poolData.marketProgramId) : null,
               marketId: isValidPublicKeyData(poolData.marketId) ? new PublicKey(poolData.marketId) : null,
               marketAuthority: isValidPublicKeyData(poolData.marketAuthority) ? new PublicKey(poolData.marketAuthority) : null,
-              marketBaseVault: null, // Can be set later if needed
-              marketQuoteVault: null, // Can be set later if needed
+              marketBaseVault: null,
+              marketQuoteVault: null,
             };
-
+    
             console.log('Pool Keys:', poolKeys);
-
+    
+            // Define transferAmount and priority fee
+            const transferAmount = 1; // Amount of SOL to spend (adjust as needed)
+            const priorityMicroLamports = 5000; // Adjust priority fee as needed
+    
             if (!tokenBought && poolKeys) {
-
               const wrappedSolAccount = Keypair.generate();
               const signers = [wrappedSolAccount];              
               const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
               const lamportsForWSOL = transferAmount * LAMPORTS_PER_SOL + rentExemptLamports;
-            
+    
+              // Create priority fee instruction
+              const priorityFeeInstruction = ComputeBudgetProgram.setComputeUnitPrice({
+                microLamports: priorityMicroLamports,
+              });
+    
               const preInstructions = [
+                priorityFeeInstruction, // Add priority fee instruction first
                 SystemProgram.createAccount({
                   fromPubkey: wallet.publicKey,
                   newAccountPubkey: wrappedSolAccount.publicKey,
@@ -636,20 +633,26 @@ async function startSniper() {
                   space: ACCOUNT_SIZE,
                   programId: TOKEN_PROGRAM_ID,
                 }),
-                createInitializeAccountInstruction(wrappedSolAccount.publicKey, WSOL_MINT, wallet.publicKey)
+                createInitializeAccountInstruction(wrappedSolAccount.publicKey, WSOL_MINT, wallet.publicKey),
               ];
-            
+    
               // Close WSOL account after swap
               const postInstructions = [
-                createCloseAccountInstruction(wrappedSolAccount.publicKey, wallet.publicKey, wallet.publicKey)
+                createCloseAccountInstruction(wrappedSolAccount.publicKey, wallet.publicKey, wallet.publicKey),
               ];
-            
+    
               // Get the associated token account for the new token
-              const newTokenAccount = await getOrCreateAssociatedTokenAccount(connection, wallet, new PublicKey(newTokenMint), wallet.publicKey);         
+              const newTokenAccount = await getOrCreateAssociatedTokenAccount(
+                connection,
+                wallet,
+                new PublicKey(newTokenMint),
+                wallet.publicKey
+              );
+    
               const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
               const amountIn = new TokenAmount(new BN(amountInLamports), 9); // SOL has 9 decimals
               const slippage = new Percent(1, 100);
-            
+    
               // Create the swap instruction using the Raydium SDK
               const { instructions: swapInstructions, signers: swapSigners } = await Liquidity.makeSwapInstruction({
                 connection,
@@ -666,35 +669,30 @@ async function startSniper() {
                 fixedSide: 'in', // We're fixing the input (SOL) amount
                 slippage,        // Slippage tolerance
               });
-            
-              // Combine all instructions
-              const tipInstruction = SystemProgram.transfer({
-                fromPubkey: wallet.publicKey,  // The wallet sending the transaction
-                toPubkey: wallet.publicKey,    // In Jito, validators process the tip, so use the wallet's own account for simplicity
-                lamports: JITO_TIP_AMOUNT,     // The amount of SOL to tip validators
-              });
-            
+    
               // Combine all instructions
               const transaction = new Transaction();
-              transaction.add(...preInstructions, ...swapInstructions, tipInstruction, ...postInstructions);         
+              transaction.add(...preInstructions, ...swapInstructions, ...postInstructions);         
               transaction.feePayer = wallet.publicKey; 
               signers.push(...swapSigners);
+    
               const { blockhash } = await connection.getLatestBlockhash('confirmed');
               transaction.recentBlockhash = blockhash;
               transaction.sign(...[wallet, ...signers]);
-
+    
               const serializedTransaction = transaction.serialize();
               const base64EncodedTransaction = serializedTransaction.toString('base64');
               await sendBundleToJito([base64EncodedTransaction]);
     
+              // Set tokenBought to true after purchasing to prevent repeated buys
+              tokenBought = true;
             }
-
-
+    
           } else {
             console.error('poolAccountInfo is undefined.');
           }
         }
-
+    
         res.status(200).send('Received');
       } catch (error) {
         console.error('Error processing /ray webhook:', error.message);
