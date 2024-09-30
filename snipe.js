@@ -560,8 +560,8 @@ async function startSniper() {
         const transferAmount = 0.01; // Amount of SOL to spend (adjust as needed)
         const priorityMicroLamports = 5000; // Adjust priority fee as needed
         const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
-        const amountIn = new TokenAmount(new BN(amountInLamports), 9); 
-        const slippage = new Percent(1, 100);
+        const amountIn = new BN(amountInLamports); 
+        const slippage = 1;
     
         if (data.source === 'RAYDIUM') {
           console.log('RAYDIUM LIQUIDITY POOL CREATED');
