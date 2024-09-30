@@ -1,5 +1,6 @@
 const fs = require('fs'); 
 const {
+  ComputeBudgetProgram,
   Keypair,
   Connection,
   Transaction,
