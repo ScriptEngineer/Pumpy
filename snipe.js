@@ -587,7 +587,47 @@ async function startSniper() {
               return;
             }
 
-            const poolKeys = await Liquidity.fetchPoolKeys(connection, poolPubKey);
+            // Parse the pool account data
+            const poolData = LIQUIDITY_STATE_LAYOUT_V4.decode(poolAccountInfo.data);
+
+            // Construct the poolKeys object
+            const poolKeys = {
+              id: poolPubKey,
+              baseMint: new PublicKey(poolData.baseMint),
+              quoteMint: new PublicKey(poolData.quoteMint),
+              lpMint: new PublicKey(poolData.lpMint),
+              version: poolData.version,
+              programId: LIQUIDITY_PROGRAM_ID_V4,
+              authority: new PublicKey(poolData.authority),
+              openOrders: new PublicKey(poolData.openOrders),
+              targetOrders: new PublicKey(poolData.targetOrders),
+              baseVault: new PublicKey(poolData.baseVault),
+              quoteVault: new PublicKey(poolData.quoteVault),
+              withdrawQueue: poolData.withdrawQueue.equals(Buffer.alloc(32)) ? null : new PublicKey(poolData.withdrawQueue),
+              lpVault: poolData.lpVault.equals(Buffer.alloc(32)) ? null : new PublicKey(poolData.lpVault),
+              marketVersion: 3,
+              marketProgramId: new PublicKey(poolData.marketProgramId),
+              marketId: new PublicKey(poolData.marketId),
+              marketAuthority: new PublicKey(poolData.marketAuthority),
+              marketBaseVault: null, // You can fetch these later if needed
+              marketQuoteVault: null,
+            };
+
+            console.log('Pool Keys:', {
+              id: poolKeys.id.toBase58(),
+              baseMint: poolKeys.baseMint.toBase58(),
+              quoteMint: poolKeys.quoteMint.toBase58(),
+              lpMint: poolKeys.lpMint.toBase58(),
+              authority: poolKeys.authority.toBase58(),
+              openOrders: poolKeys.openOrders.toBase58(),
+              targetOrders: poolKeys.targetOrders.toBase58(),
+              baseVault: poolKeys.baseVault.toBase58(),
+              quoteVault: poolKeys.quoteVault.toBase58(),
+              marketProgramId: poolKeys.marketProgramId.toBase58(),
+              marketId: poolKeys.marketId.toBase58(),
+              marketAuthority: poolKeys.marketAuthority.toBase58(),
+            });
+
             console.log('Pool Keys:', poolKeys);
 
           } else {
