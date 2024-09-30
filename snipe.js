@@ -22,6 +22,9 @@ const {
   Liquidity,
   LIQUIDITY_POOLS,
   LIQUIDITY_STATE_LAYOUT_V4,
+  LiquidityPoolKeys,
+  MAINNET_PROGRAM_ID,
+  MARKET_STATE_LAYOUT_V3,
   TokenAmount,
   Percent,
 } = require('@raydium-io/raydium-sdk');
@@ -587,8 +590,18 @@ async function startSniper() {
           const poolPubKey = new PublicKey(poolID);
           const poolAccountInfo = await connection.getAccountInfo(poolPubKey);
           const poolData = LIQUIDITY_STATE_LAYOUT_V4.decode(poolAccountInfo.data);
+          const marketAccount = await connection.getAccountInfo(poolData.marketId);
+          const marketState = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data);
     
-          if (poolData) {
+          if (poolData && marketState) {
+
+            const marketAuthority = PublicKey.createProgramAddressSync(
+              [
+                marketState.ownAddress.toBuffer(),
+                marketState.vaultSignerNonce.toArrayLike(Buffer, "le", 8),
+              ],
+              MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
+            );
 
             console.log("\n");
             console.log("New token mint: ", newTokenMint);
@@ -614,15 +627,22 @@ async function startSniper() {
               lpMint: isValidPublicKeyData(poolData.lpMint) ? new PublicKey(poolData.lpMint) : null,
               version: poolData.version !== undefined ? poolData.version : 4,
               programId: LIQUIDITY_PROGRAM_ID_V4,
-              authority: isValidPublicKeyData(poolData.authority) ? new PublicKey(poolData.authority) : null,
+              authority: new PublicKey(
+                "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1",
+              ),
               openOrders: isValidPublicKeyData(poolData.openOrders) ? new PublicKey(poolData.openOrders) : null,
               targetOrders: isValidPublicKeyData(poolData.targetOrders) ? new PublicKey(poolData.targetOrders) : null,
               baseVault: isValidPublicKeyData(poolData.baseVault) ? new PublicKey(poolData.baseVault) : null,
               quoteVault: isValidPublicKeyData(poolData.quoteVault) ? new PublicKey(poolData.quoteVault) : null,
               marketVersion: 3,
               marketProgramId: isValidPublicKeyData(poolData.marketProgramId) ? new PublicKey(poolData.marketProgramId) : null,
-              marketId: isValidPublicKeyData(poolData.marketId) ? new PublicKey(poolData.marketId) : null,
-              marketAuthority: isValidPublicKeyData(poolData.marketAuthority) ? new PublicKey(poolData.marketAuthority) : null,
+              marketId: isValidPublicKeyData(poolData.marketId) ? new PublicKey(poolData.marketId) : null,             
+              marketBids: marketState.bids,
+              marketAsks: marketState.asks,
+              marketEventQueue: marketState.eventQueue,
+              marketBaseVault: marketState.baseVault,
+              marketQuoteVault: marketState.quoteVault,
+              marketAuthority: marketAuthority,       
               marketBaseVault: null,
               marketQuoteVault: null,
             };
