@@ -613,7 +613,7 @@ async function startSniper() {
             /*console.log('Pool Keys:', poolKeys);*/
     
             // Define transferAmount and priority fee
-            const transferAmount = 1; // Amount of SOL to spend (adjust as needed)
+            const transferAmount = 0.01; // Amount of SOL to spend (adjust as needed)
             const priorityMicroLamports = 5000; // Adjust priority fee as needed
     
             if (!tokenBought && poolKeys) {
@@ -657,7 +657,7 @@ async function startSniper() {
               );
     
               const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
-              const amountIn = new TokenAmount(new BN(amountInLamports), 9); // SOL has 9 decimals
+              const amountIn = new BN(amountInLamports); 
               const slippage = new Percent(1, 100);
     
               console.log("Creating swap instruction");
