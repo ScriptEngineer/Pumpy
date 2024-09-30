@@ -553,6 +553,12 @@ async function startSniper() {
 
         console.log("Webhook received");
         const data = req.body[0];
+        // Define transferAmount and priority fee
+        const transferAmount = 0.01; // Amount of SOL to spend (adjust as needed)
+        const priorityMicroLamports = 5000; // Adjust priority fee as needed
+        const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
+        const amountIn = new BN(amountInLamports); 
+        const slippage = new Percent(1, 100);
     
         if (data.source === 'RAYDIUM') {
           console.log('RAYDIUM LIQUIDITY POOL CREATED');
@@ -580,14 +586,25 @@ async function startSniper() {
           const tokenKey = new PublicKey(newTokenMint);
           const poolPubKey = new PublicKey(poolID);
           const poolAccountInfo = await connection.getAccountInfo(poolPubKey);
+          const poolData = LIQUIDITY_STATE_LAYOUT_V4.decode(poolAccountInfo.data);
     
-          if (poolAccountInfo) {
+          if (poolData) {
+
+            console.log("\n");
             console.log("New token mint: ", newTokenMint);
             console.log("Pool ID: ", poolID);
-    
-            // Parse the pool account data
-            const poolData = LIQUIDITY_STATE_LAYOUT_V4.decode(poolAccountInfo.data);
-            /*console.log("Pool Data: ", poolData);*/
+            console.log("Pool Data: ", poolData);
+            console.log("Pool Base Mint: ", poolData.baseMint);
+            console.log("Pool Quote Mint: ", poolData.quoteMint);
+            console.log("Pool LP Mint: ", poolData.lpMint);
+            console.log("Pool Authority: ", poolData.authority);
+            console.log("Pool Open Orders: ", poolData.openOrders);
+            console.log("Pool Target Orders: ", poolData.targetOrders);
+            console.log("Pool Base Vault: ", poolData.baseVault);
+            console.log("Pool Quote Vault: ", poolData.quoteVault);
+            console.log("Pool Market Program ID: ", poolData.marketProgramId);
+            console.log("Pool Market ID: ", poolData.marketId);
+            console.log("Pool Market Authority: ", poolData.marketAuthority);
     
             // Construct the poolKeys object
             const poolKeys = {
@@ -611,10 +628,6 @@ async function startSniper() {
             };
     
             /*console.log('Pool Keys:', poolKeys);*/
-    
-            // Define transferAmount and priority fee
-            const transferAmount = 0.01; // Amount of SOL to spend (adjust as needed)
-            const priorityMicroLamports = 5000; // Adjust priority fee as needed
     
             if (!tokenBought && poolKeys) {
 
@@ -655,10 +668,6 @@ async function startSniper() {
                 new PublicKey(newTokenMint),
                 wallet.publicKey
               );
-    
-              const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
-              const amountIn = new BN(amountInLamports); 
-              const slippage = new Percent(1, 100);
     
               console.log("Creating swap instruction");
               const { instructions: swapInstructions, signers: swapSigners } = await Liquidity.makeSwapInstruction({
