@@ -652,7 +652,7 @@ async function startSniper() {
               marketQuoteVault: null,
             };
     
-            /*console.log('Pool Keys:', poolKeys);*/
+            console.log('Pool Keys:', poolKeys);
     
             if (!tokenBought && poolKeys) {
 
