@@ -590,7 +590,10 @@ async function startSniper() {
           const poolPubKey = new PublicKey(poolID);
           const poolAccountInfo = await connection.getAccountInfo(poolPubKey);
           const poolData = LIQUIDITY_STATE_LAYOUT_V4.decode(poolAccountInfo.data);
+
+          console.log("Getting market account...");
           const marketAccount = await connection.getAccountInfo(poolData.marketId);
+          console.log("Getting market state...")
           const marketState = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data);
     
           if (poolData && marketState) {
