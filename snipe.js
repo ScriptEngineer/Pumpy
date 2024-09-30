@@ -621,6 +621,75 @@ async function startSniper() {
 
             console.log('Pool Keys:', poolKeys);
 
+            if (!tokenBought && poolKeys) {
+
+              const wrappedSolAccount = Keypair.generate();
+              const signers = [wrappedSolAccount];              
+              const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
+              const lamportsForWSOL = transferAmount * LAMPORTS_PER_SOL + rentExemptLamports;
+            
+              const preInstructions = [
+                SystemProgram.createAccount({
+                  fromPubkey: wallet.publicKey,
+                  newAccountPubkey: wrappedSolAccount.publicKey,
+                  lamports: lamportsForWSOL,
+                  space: ACCOUNT_SIZE,
+                  programId: TOKEN_PROGRAM_ID,
+                }),
+                createInitializeAccountInstruction(wrappedSolAccount.publicKey, WSOL_MINT, wallet.publicKey)
+              ];
+            
+              // Close WSOL account after swap
+              const postInstructions = [
+                createCloseAccountInstruction(wrappedSolAccount.publicKey, wallet.publicKey, wallet.publicKey)
+              ];
+            
+              // Get the associated token account for the new token
+              const newTokenAccount = await getOrCreateAssociatedTokenAccount(connection, wallet, new PublicKey(newTokenMint), wallet.publicKey);         
+              const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
+              const amountIn = new TokenAmount(new BN(amountInLamports), 9); // SOL has 9 decimals
+              const slippage = new Percent(1, 100);
+            
+              // Create the swap instruction using the Raydium SDK
+              const { instructions: swapInstructions, signers: swapSigners } = await Liquidity.makeSwapInstruction({
+                connection,
+                poolKeys,
+                userKeys: {
+                  tokenAccounts: {
+                    input: wrappedSolAccount.publicKey,   // WSOL input account
+                    output: newTokenAccount.address,      // Token output account
+                  },
+                  owner: wallet.publicKey,
+                  wrappedSolAccount: wrappedSolAccount.publicKey,
+                },
+                amountIn,        // Amount of SOL to swap
+                fixedSide: 'in', // We're fixing the input (SOL) amount
+                slippage,        // Slippage tolerance
+              });
+            
+              // Combine all instructions
+              const tipInstruction = SystemProgram.transfer({
+                fromPubkey: wallet.publicKey,  // The wallet sending the transaction
+                toPubkey: wallet.publicKey,    // In Jito, validators process the tip, so use the wallet's own account for simplicity
+                lamports: JITO_TIP_AMOUNT,     // The amount of SOL to tip validators
+              });
+            
+              // Combine all instructions
+              const transaction = new Transaction();
+              transaction.add(...preInstructions, ...swapInstructions, tipInstruction, ...postInstructions);         
+              transaction.feePayer = wallet.publicKey; 
+              signers.push(...swapSigners);
+              const { blockhash } = await connection.getLatestBlockhash('confirmed');
+              transaction.recentBlockhash = blockhash;
+              transaction.sign(...[wallet, ...signers]);
+
+              const serializedTransaction = transaction.serialize();
+              const base64EncodedTransaction = serializedTransaction.toString('base64');
+              await sendBundleToJito([base64EncodedTransaction]);
+    
+            }
+
+
           } else {
             console.error('poolAccountInfo is undefined.');
           }
