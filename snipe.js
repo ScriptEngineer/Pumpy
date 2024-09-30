@@ -593,11 +593,14 @@ async function startSniper() {
 
           console.log("Getting market account...");
           const marketAccount = await connection.getAccountInfo(poolData.marketId);
+          console.log(marketAccount)
           console.log("Getting market state...")
           const marketState = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data);
+          console.log(marketState);
     
           if (poolData && marketState) {
 
+            console.log("Getting market authority...");
             const marketAuthority = PublicKey.createProgramAddressSync(
               [
                 marketState.ownAddress.toBuffer(),
@@ -605,22 +608,21 @@ async function startSniper() {
               ],
               MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
             );
+            console.log(marketAuthority);
 
             console.log("\n");
             console.log("New token mint: ", newTokenMint);
             console.log("Pool ID: ", poolID);
-            console.log("Pool Data: ", poolData);
+            /*console.log("Pool Data: ", poolData);*/
             console.log("Pool Base Mint: ", poolData.baseMint);
             console.log("Pool Quote Mint: ", poolData.quoteMint);
             console.log("Pool LP Mint: ", poolData.lpMint);
-            console.log("Pool Authority: ", poolData.authority);
             console.log("Pool Open Orders: ", poolData.openOrders);
             console.log("Pool Target Orders: ", poolData.targetOrders);
             console.log("Pool Base Vault: ", poolData.baseVault);
             console.log("Pool Quote Vault: ", poolData.quoteVault);
             console.log("Pool Market Program ID: ", poolData.marketProgramId);
             console.log("Pool Market ID: ", poolData.marketId);
-            console.log("Pool Market Authority: ", poolData.marketAuthority);
     
             // Construct the poolKeys object
             const poolKeys = {
