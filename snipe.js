@@ -586,7 +586,7 @@ async function startSniper() {
     
             // Parse the pool account data
             const poolData = LIQUIDITY_STATE_LAYOUT_V4.decode(poolAccountInfo.data);
-            console.log("Pool Data: ", poolData);
+            /*console.log("Pool Data: ", poolData);*/
     
             // Construct the poolKeys object
             const poolKeys = {
@@ -610,23 +610,27 @@ async function startSniper() {
               marketQuoteVault: null,
             };
     
-            console.log('Pool Keys:', poolKeys);
+            /*console.log('Pool Keys:', poolKeys);*/
     
             // Define transferAmount and priority fee
             const transferAmount = 1; // Amount of SOL to spend (adjust as needed)
             const priorityMicroLamports = 5000; // Adjust priority fee as needed
     
             if (!tokenBought && poolKeys) {
+
+              console.log('Preparing WSOL account');
               const wrappedSolAccount = Keypair.generate();
               const signers = [wrappedSolAccount];              
               const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
               const lamportsForWSOL = transferAmount * LAMPORTS_PER_SOL + rentExemptLamports;
     
               // Create priority fee instruction
+              console.log("Computing priority fee")
               const priorityFeeInstruction = ComputeBudgetProgram.setComputeUnitPrice({
                 microLamports: priorityMicroLamports,
               });
     
+              console.log("Building Pre-Instructions");
               const preInstructions = [
                 priorityFeeInstruction, // Add priority fee instruction first
                 SystemProgram.createAccount({
@@ -639,12 +643,12 @@ async function startSniper() {
                 createInitializeAccountInstruction(wrappedSolAccount.publicKey, WSOL_MINT, wallet.publicKey),
               ];
     
-              // Close WSOL account after swap
+              console.log("Building Post-Instructions");
               const postInstructions = [
                 createCloseAccountInstruction(wrappedSolAccount.publicKey, wallet.publicKey, wallet.publicKey),
               ];
     
-              // Get the associated token account for the new token
+              console.log("Retrieving or creating token account");
               const newTokenAccount = await getOrCreateAssociatedTokenAccount(
                 connection,
                 wallet,
@@ -656,7 +660,7 @@ async function startSniper() {
               const amountIn = new TokenAmount(new BN(amountInLamports), 9); // SOL has 9 decimals
               const slippage = new Percent(1, 100);
     
-              // Create the swap instruction using the Raydium SDK
+              console.log("Creating swap instruction");
               const { instructions: swapInstructions, signers: swapSigners } = await Liquidity.makeSwapInstruction({
                 connection,
                 poolKeys,
@@ -673,7 +677,7 @@ async function startSniper() {
                 slippage,        // Slippage tolerance
               });
     
-              // Combine all instructions
+              console.log("Combining instructions");
               const transaction = new Transaction();
               transaction.add(...preInstructions, ...swapInstructions, ...postInstructions);         
               transaction.feePayer = wallet.publicKey; 
@@ -685,6 +689,8 @@ async function startSniper() {
     
               const serializedTransaction = transaction.serialize();
               const base64EncodedTransaction = serializedTransaction.toString('base64');
+
+              console.log("Sending transaction to Jito");
               await sendBundleToJito([base64EncodedTransaction]);
     
               // Set tokenBought to true after purchasing to prevent repeated buys
