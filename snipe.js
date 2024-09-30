@@ -550,6 +550,8 @@ async function startSniper() {
 
     app.post('/ray', async (req, res) => {
       try {
+
+        console.log("Webhook received");
         const data = req.body[0];
     
         if (data.source === 'RAYDIUM') {
