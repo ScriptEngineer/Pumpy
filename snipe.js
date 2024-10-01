@@ -386,26 +386,45 @@ async function startSniper() {
             );
             
             console.log("Getting associated authority...");
+
             const authority = Liquidity.getAssociatedAuthority({
               programId: new PublicKey(RAYDIUM_AMM_PROGRAM_ID),
             }).publicKey;
 
-            console.log("Building pool keys...");
+            const marketAuthority2 = Market.getAssociatedAuthority({
+              programId: marketState.programId,
+              marketId: marketState.ownAddress,
+            }).publicKey;            
 
-            /*
+            console.log("Building pool keys...");
+          
             console.log("\n");
             console.log("New token mint: ", newTokenMint);
             console.log("Pool ID: ", poolID);
             console.log("Pool Base Mint: ", poolData.baseMint);
             console.log("Pool Quote Mint: ", poolData.quoteMint);
             console.log("Pool LP Mint: ", poolData.lpMint);
+
+            console.log("Pool Base Decimal: ", poolData.baseDecimal);
+            console.log("Pool Quote Decimal: ", poolData.quoteDecimal);
+            console.log("Pool LP Decimal: ", poolData.lpDecimal);
+            console.log("Pool Version: ", poolData.version);
+            console.log("Pool Program ID: ", poolData.programId);
+            console.log("Pool Authority: ", authority);
             console.log("Pool Open Orders: ", poolData.openOrders);
             console.log("Pool Target Orders: ", poolData.targetOrders);
             console.log("Pool Base Vault: ", poolData.baseVault);
             console.log("Pool Quote Vault: ", poolData.quoteVault);
             console.log("Pool Market Program ID: ", poolData.marketProgramId);
             console.log("Pool Market ID: ", poolData.marketId);
-            */
+            console.log("Pool Market Authority: ", marketAuthority);
+            
+            console.log("Market Bids: ", marketState.bids);
+            console.log("Market Asks: ", marketState.asks);
+            console.log("Market Event Queue: ", marketState.eventQueue);
+            console.log("Market Base Vault: ", marketState.baseVault);
+            console.log("Market Quote Vault: ", marketState.quoteVault);
+            console.log("Market Authority2?: ", marketAuthority2);
     
             // Construct the poolKeys object
             const poolKeys = {
