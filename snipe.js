@@ -388,7 +388,9 @@ async function startSniper() {
             console.log("Getting associated authority...");
             const authority = Liquidity.getAssociatedAuthority({
               programId: new PublicKey(RAYDIUM_AMM_PROGRAM_ID),
-            }).publicKey
+            }).publicKey;
+
+            console.log("Building pool keys...");
 
             /*
             console.log("\n");
