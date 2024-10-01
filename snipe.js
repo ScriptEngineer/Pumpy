@@ -369,6 +369,7 @@ async function startSniper() {
 
           console.log("Getting market account...");
           const marketAccount = await connection.getAccountInfo(poolData.marketId);
+          const marketProgramId = marketAccount.owner;
           /*console.log(marketAccount);*/
           console.log("Getting market state...")
           const marketState = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data);
@@ -393,7 +394,7 @@ async function startSniper() {
 
             console.log("Getting market authority 2...");
             const marketAuthority2 = Market.getAssociatedAuthority({
-              programId: marketState.programId,
+              programId: marketProgramId,
               marketId: marketState.ownAddress,
             }).publicKey;            
 
