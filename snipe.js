@@ -428,19 +428,33 @@ async function startSniper() {
     
             if (!tokenBought && poolKeys) {
 
-              // Define transferAmount and priority fee
-              const transferAmount = 0.01; // Amount of SOL to spend (adjust as needed)
-              const priorityMicroLamports = 5000; // Adjust priority fee as needed
+              const transferAmount = 0.01; // Amount of SOL to spend
+              const priorityMicroLamports = 5000; // Priority fee
               const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
               const decimals = 9; // SOL has 9 decimals
-              const amountIn = new TokenAmount(new BN(amountInLamports), decimals);
-              const slippage = new Percent(1, 100);
-
-              console.log('Preparing WSOL account');
-              const wrappedSolAccount = Keypair.generate();
-              const signers = [wrappedSolAccount];              
-              const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
-              const lamportsForWSOL = transferAmount * LAMPORTS_PER_SOL + rentExemptLamports;
+              
+              // Create TokenAmount for amountIn
+              const currencyIn = new Token(TOKEN_PROGRAM_ID, WSOL_MINT, decimals);
+              const amountIn = new TokenAmount(currencyIn, amountInLamports.toString(), false);
+              
+              // Fetch pool info
+              const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
+              
+              // Get token output info
+              const tokenOutMint = new PublicKey(newTokenMint);
+              const mintInfo = await connection.getParsedAccountInfo(tokenOutMint);
+              const tokenOutDecimals = mintInfo.value.data.parsed.info.decimals;
+              const tokenOut = new Token(TOKEN_PROGRAM_ID, tokenOutMint, tokenOutDecimals);
+              
+              // Compute amountOut and minAmountOut
+              const slippage = new Percent(1, 100); // 1% slippage
+              const { amountOut, minAmountOut } = Liquidity.computeAmountOut({
+                poolKeys,
+                poolInfo,
+                amountIn,
+                currencyOut: tokenOut,
+                slippage,
+              });
     
               // Create priority fee instruction
               console.log("Computing priority fee")
@@ -480,15 +494,15 @@ async function startSniper() {
                 poolKeys,
                 userKeys: {
                   tokenAccounts: {
-                    input: wrappedSolAccount.publicKey,   // WSOL input account
-                    output: newTokenAccount.address,      // Token output account
+                    input: wrappedSolAccount.publicKey,
+                    output: newTokenAccount.address,
                   },
                   owner: wallet.publicKey,
                   wrappedSolAccount: wrappedSolAccount.publicKey,
                 },
-                amountIn,        // Amount of SOL to swap
-                fixedSide: 'in', // We're fixing the input (SOL) amount
-                slippage,        // Slippage tolerance
+                amountIn: amountIn.raw,          // Pass the raw BN value
+                amountOut: minAmountOut.raw,     // Pass the raw BN value
+                fixedSide: 'in',                 // We're fixing the input (SOL) amount
               });
     
               console.log("Combining instructions");
