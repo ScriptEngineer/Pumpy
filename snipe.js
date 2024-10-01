@@ -505,10 +505,10 @@ async function startSniper() {
               const wrappedSolAccount = Keypair.generate();
               const signers = [wrappedSolAccount];
               const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
+              const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
               const lamportsForWSOL = amountInLamports + rentExemptLamports;
               const transferAmount = 0.01; // Amount of SOL to spend
               const priorityMicroLamports = 5000; // Priority fee
-              const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
               const decimals = 9; // SOL has 9 decimals
               
               // Create TokenAmount for amountIn
