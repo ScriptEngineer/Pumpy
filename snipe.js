@@ -25,6 +25,8 @@ const {
   LiquidityPoolKeys,
   MAINNET_PROGRAM_ID,
   MARKET_STATE_LAYOUT_V3,
+  TokenAccount,
+  Token,
   TokenAmount,
   Percent,
 } = require('@raydium-io/raydium-sdk');
