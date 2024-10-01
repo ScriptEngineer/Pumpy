@@ -440,8 +440,8 @@ async function startSniper() {
               baseVault: poolData.baseVault,
               quoteVault: poolData.quoteVault,
               marketVersion: 3,
-              /*marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,*/
-              marketProgramId: marketProgramId,
+              marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
+              /*marketProgramId: marketProgramId,*/
               marketId: poolData.marketId, 
               marketAuthority: Market.getAssociatedAuthority({
                 programId: marketProgramId,
@@ -457,7 +457,7 @@ async function startSniper() {
               lpVault: poolData.lpVault,
               lookupTableAccount: PublicKey.default
             };
-            
+
             console.log('Pool Keys:', poolKeys);
     
             if (!tokenBought && poolKeys) {
