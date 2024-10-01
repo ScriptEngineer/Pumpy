@@ -29,6 +29,7 @@ const {
   Token,
   TokenAmount,
   Percent,
+  Market,
 } = require('@raydium-io/raydium-sdk');
 
 const JSONStream = require('JSONStream'); 
