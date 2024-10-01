@@ -391,6 +391,7 @@ async function startSniper() {
               programId: new PublicKey(RAYDIUM_AMM_PROGRAM_ID),
             }).publicKey;
 
+            console.log("Getting market authority 2...");
             const marketAuthority2 = Market.getAssociatedAuthority({
               programId: marketState.programId,
               marketId: marketState.ownAddress,
