@@ -277,227 +277,6 @@ async function mainMenu() {
     process.exit(0);
   }
 }
-/*
-async function swapToken(
-  tokenAccount,
-  tokenMint,
-  mintAddress,
-  poolAddress = null,
-  exchange = 'raydium',
-  direction = 'sell',
-  USE_JITO = false,
-  transferAmount = 0.0
-) {
-
-  console.log("starting swap");
-
-  let poolKeys;
-  if (exchange === 'raydium' && !poolAddress) {
-
-    const response = await axios.get('https://api.raydium.io/v2/sdk/liquidity/mainnet.json');
-    const allPools = response.data;
-    const officialPools = allPools.official;
-    const unofficialPools = allPools.unOfficial;
-
-    writeJsonToFile(officialPools, 'officialPools.json');
-    writeLargeJsonToFile(unofficialPools, 'unofficialPools.json');
-    console.log("Official Pools count", officialPools.length);
-    console.log("Unofficial Pools count", unofficialPools.length);
-
-    let targetPool = officialPools.find(pool =>
-      new PublicKey(pool.baseMint).equals(mintAddress) || 
-      new PublicKey(pool.quoteMint).equals(mintAddress)
-    );
-
-    if (!targetPool) {
-      targetPool = unofficialPools.find(pool =>
-        new PublicKey(pool.baseMint).equals(mintAddress) || 
-        new PublicKey(pool.quoteMint).equals(mintAddress)
-      );
-    }
-
-    if (targetPool) {
-      console.log("Target pool found:", targetPool);
-    } else {
-      console.log("No pool found.");
-    }
-
-  }
-
-  console.log('Pool Keys Found:', poolKeys.id.toBase58());
-
-  // Fetch pool info
-  const poolInfo = await Liquidity.fetchInfo({
-    connection,
-    poolKeys,
-    programId: LIQUIDITY_PROGRAM_ID_V4,
-    layout: LIQUIDITY_STATE_LAYOUT_V4,
-  });
-
-  let inputAccount, outputAccount, amountIn, decimals, fixedSide, wrappedSolAccount;
-  const preInstructions = [];
-  const postInstructions = [];
-  const signers = [];
-
-  if (direction === 'buy' && !tokenBought) {
-    // Swapping SOL for Token
-    wrappedSolAccount = Keypair.generate();
-    signers.push(wrappedSolAccount);
-
-    // Create WSOL account
-    const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
-    const lamportsForWSOL = transferAmount * LAMPORTS_PER_SOL + rentExemptLamports;
-
-    preInstructions.push(
-      SystemProgram.createAccount({
-        fromPubkey: wallet.publicKey,
-        newAccountPubkey: wrappedSolAccount.publicKey,
-        lamports: lamportsForWSOL,
-        space: ACCOUNT_SIZE,
-        programId: TOKEN_PROGRAM_ID,
-      }),
-      createInitializeAccountInstruction(
-        wrappedSolAccount.publicKey,
-        WSOL_MINT,
-        wallet.publicKey
-      )
-    );
-
-    // Close WSOL account after swap
-    postInstructions.push(
-      createCloseAccountInstruction(
-        wrappedSolAccount.publicKey,
-        wallet.publicKey,
-        wallet.publicKey
-      )
-    );
-
-    inputAccount = wrappedSolAccount.publicKey;
-    outputAccount = tokenAccount.address;
-    decimals = 9; // SOL has 9 decimals
-    const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
-    amountIn = new TokenAmount(new BN(amountInLamports), decimals);
-    fixedSide = 'in';
-
-  } else if (direction === 'sell') {
-    // Swapping Token for SOL
-    wrappedSolAccount = Keypair.generate();
-    signers.push(wrappedSolAccount);
-
-    // Create temporary WSOL account to receive SOL
-    const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
-    preInstructions.push(
-      SystemProgram.createAccount({
-        fromPubkey: wallet.publicKey,
-        newAccountPubkey: wrappedSolAccount.publicKey,
-        lamports: rentExemptLamports,
-        space: ACCOUNT_SIZE,
-        programId: TOKEN_PROGRAM_ID,
-      }),
-      createInitializeAccountInstruction(
-        wrappedSolAccount.publicKey,
-        WSOL_MINT,
-        wallet.publicKey
-      )
-    );
-
-    // Close WSOL account after swap (unwrap SOL)
-    postInstructions.push(
-      createCloseAccountInstruction(
-        wrappedSolAccount.publicKey,
-        wallet.publicKey,
-        wallet.publicKey
-      )
-    );
-
-    inputAccount = tokenAccount.address;
-    outputAccount = wrappedSolAccount.publicKey;
-
-    // Get token decimals
-    const mintInfo = await connection.getParsedAccountInfo(mintAddress);
-    decimals = mintInfo.value.data.parsed.info.decimals;
-
-    // Convert transfer amount to smallest units
-    const amountInUnits = transferAmount * Math.pow(10, decimals);
-    amountIn = new TokenAmount(new BN(amountInUnits), decimals);
-    fixedSide = 'in';
-
-    // Check if you have enough tokens
-    const tokenBalance = await connection.getTokenAccountBalance(inputAccount);
-    const balance = parseFloat(tokenBalance.value.amount);
-
-    if (balance < amountInUnits) {
-      console.error('Insufficient token balance to sell');
-      return;
-    }
-  }
-
-  // Set slippage tolerance (e.g., 1%)
-  const slippage = new Percent(1, 100);
-
-  // Create swap instruction
-  const { instructions: swapInstructions, signers: swapSigners } = await Liquidity.makeSwapInstruction({
-    connection,
-    poolKeys,
-    userKeys: {
-      tokenAccounts: {
-        input: inputAccount,
-        output: outputAccount,
-      },
-      owner: wallet.publicKey,
-      wrappedSolAccount: wrappedSolAccount ? wrappedSolAccount.publicKey : undefined,
-    },
-    amountIn,
-    fixedSide,
-    slippage,
-  });
-  
-  console.log('Pre-instructions:', preInstructions);
-  console.log('Swap instructions:', swapInstructions);
-  console.log('Post-instructions:', postInstructions);
-  console.log('Signers:', signers);
-  // Combine all instructions and signers
-  const transaction = new Transaction();
-  transaction.add(...preInstructions, ...swapInstructions, ...postInstructions);
-
-  transaction.feePayer = wallet.publicKey;
-
-  signers.push(...swapSigners);
-
-  if (USE_JITO) {
-    addTipInstruction(transaction);
-  }
-
-  const { blockhash } = await connection.getLatestBlockhash('confirmed');
-  transaction.recentBlockhash = blockhash;
-  transaction.sign(...[wallet, ...signers]);
-
-  if (USE_JITO) {
-
-    const serializedTransaction = transaction.serialize();
-    const base64EncodedTransaction = serializedTransaction.toString('base64');
-    await sendBundleToJito([base64EncodedTransaction]);
-
-  } else {
-
-    try {
-      const txid = await sendAndConfirmTransaction(
-        connection,
-        transaction,
-        [wallet, ...signers],
-        { commitment: 'confirmed' }
-      );
-      console.log(
-        `${direction.charAt(0).toUpperCase() + direction.slice(1)} transaction sent:`,
-        txid
-      );
-    } catch (error) {
-      console.error(`Error sending ${direction} transaction:`, error);
-    }
-  }
-
-}
-*/
 
 function isValidPublicKeyData(data) {
   return data instanceof PublicKey && data.toBase58() !== '11111111111111111111111111111111';
@@ -556,12 +335,6 @@ async function startSniper() {
 
         console.log("Webhook received");
         const data = req.body[0];
-        // Define transferAmount and priority fee
-        const transferAmount = 0.01; // Amount of SOL to spend (adjust as needed)
-        const priorityMicroLamports = 5000; // Adjust priority fee as needed
-        const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
-        const amountIn = new BN(amountInLamports); 
-        const slippage = 1;
     
         if (data.source === 'RAYDIUM') {
           console.log('RAYDIUM LIQUIDITY POOL CREATED');
@@ -641,7 +414,7 @@ async function startSniper() {
               baseVault: poolData.baseVault,
               quoteVault: poolData.quoteVault,
               marketVersion: 3,
-              marketProgramId: poolData.marketProgramId,
+              marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
               marketId: poolData.marketId,             
               marketBids: marketState.bids,
               marketAsks: marketState.asks,
@@ -654,6 +427,14 @@ async function startSniper() {
             console.log('Pool Keys:', poolKeys);
     
             if (!tokenBought && poolKeys) {
+
+              // Define transferAmount and priority fee
+              const transferAmount = 0.01; // Amount of SOL to spend (adjust as needed)
+              const priorityMicroLamports = 5000; // Adjust priority fee as needed
+              const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
+              const decimals = 9; // SOL has 9 decimals
+              const amountIn = new TokenAmount(new BN(amountInLamports), decimals);
+              const slippage = new Percent(1, 100);
 
               console.log('Preparing WSOL account');
               const wrappedSolAccount = Keypair.generate();
