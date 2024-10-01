@@ -51,7 +51,7 @@ if (!PRIVATE_KEY) {
 const secretKey = bs58.decode(PRIVATE_KEY);
 const wallet = Keypair.fromSecretKey(secretKey);
 const connection = new Connection(RPC_URL, 'confirmed');
-//const RAYDIUM_AMM_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
+const RAYDIUM_AMM_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
 const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey('5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS');
 const RAYDIUM_SWAP_PROGRAM = '5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS';
 let tokenBought = false;
@@ -383,7 +383,11 @@ async function startSniper() {
               ],
               MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
             );
-            console.log(marketAuthority);
+            
+            console.log("Getting associated authority...");
+            const authority = Liquidity.getAssociatedAuthority({
+              programId: new PublicKey(RAYDIUM_AMM_PROGRAM_ID),
+            }).publicKey
 
             /*
             console.log("\n");
@@ -406,30 +410,78 @@ async function startSniper() {
               baseMint: poolData.baseMint,
               quoteMint: poolData.quoteMint,
               lpMint: poolData.lpMint,
+              baseDecimals: Number.parseInt(poolData.baseDecimal.toString()),
+              quoteDecimals: Number.parseInt(poolData.quoteDecimal.toString()),
+              lpDecimals: Number.parseInt(poolData.baseDecimal.toString()),
               version: 4,
-              programId: LIQUIDITY_PROGRAM_ID_V4,
-              authority: new PublicKey(
-                "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1",
-              ),
+              /*programId: LIQUIDITY_PROGRAM_ID_V4,*/
+              programId: poolData.programId,
+              authority: authority,
               openOrders: poolData.openOrders,
               targetOrders: poolData.targetOrders,
               baseVault: poolData.baseVault,
               quoteVault: poolData.quoteVault,
               marketVersion: 3,
-              marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
-              marketId: poolData.marketId,             
+              /*marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,*/
+              marketProgramId: marketState.programId,
+              marketId: poolData.marketId, 
+              marketAuthority: Market.getAssociatedAuthority({
+                programId: marketState.programId,
+                marketId: marketState.ownAddress,
+              }).publicKey,            
               marketBids: marketState.bids,
               marketAsks: marketState.asks,
               marketEventQueue: marketState.eventQueue,
               marketBaseVault: marketState.baseVault,
               marketQuoteVault: marketState.quoteVault,
-              marketAuthority: marketAuthority,       
+              marketAuthority: marketAuthority, 
+              withdrawQueue: poolData.withdrawQueue,      
+              lpVault: poolData.lpVault,
+              lookupTableAccount: PublicKey.default
             };
+
+            /*
+            const poolKeys = {
+              id: pool.id,
+              baseMint: pool.baseMint,
+              quoteMint: pool.quoteMint,
+              lpMint: pool.lpMint,
+              baseDecimals: Number.parseInt(pool.baseDecimal.toString()),
+              quoteDecimals: Number.parseInt(pool.quoteDecimal.toString()),
+              lpDecimals: Number.parseInt(pool.baseDecimal.toString()),
+              version: pool.version,
+              programId: pool.programId,
+              openOrders: pool.openOrders,
+              targetOrders: pool.targetOrders,
+              baseVault: pool.baseVault,
+              quoteVault: pool.quoteVault,
+              marketVersion: 3,
+              authority: authority,
+              marketProgramId,
+              marketId: market.ownAddress,
+              marketAuthority: Market.getAssociatedAuthority({
+                programId: marketProgramId,
+                marketId: market.ownAddress,
+              }).publicKey,
+              marketBaseVault: market.baseVault,
+              marketQuoteVault: market.quoteVault,
+              marketBids: market.bids,
+              marketAsks: market.asks,
+              marketEventQueue: market.eventQueue,
+              withdrawQueue: pool.withdrawQueue,
+              lpVault: pool.lpVault,
+              lookupTableAccount: PublicKey.default,
+            } as LiquidityPoolKeys;
+            */
     
             console.log('Pool Keys:', poolKeys);
     
             if (!tokenBought && poolKeys) {
 
+              const wrappedSolAccount = Keypair.generate();
+              const signers = [wrappedSolAccount];
+              const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
+              const lamportsForWSOL = amountInLamports + rentExemptLamports;
               const transferAmount = 0.01; // Amount of SOL to spend
               const priorityMicroLamports = 5000; // Priority fee
               const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
@@ -491,20 +543,15 @@ async function startSniper() {
               );
     
               console.log("Creating swap instruction");
-              const { instructions: swapInstructions, signers: swapSigners } = await Liquidity.makeSwapInstruction({
-                connection,
-                poolKeys,
-                userKeys: {
-                  tokenAccounts: {
-                    input: wrappedSolAccount.publicKey,
-                    output: newTokenAccount.address,
-                  },
+              const swapInstructions = await Liquidity.makeSwapInstructionSimple({
+                connection,                  // Solana connection object
+                poolKeys,                    // The poolKeys object with pool info
+                userKeys: {                  // User keys for the swap
                   owner: wallet.publicKey,
-                  wrappedSolAccount: wrappedSolAccount.publicKey,
                 },
-                amountIn: amountIn.raw,          // Pass the raw BN value
-                amountOut: minAmountOut.raw,     // Pass the raw BN value
-                fixedSide: 'in',                 // We're fixing the input (SOL) amount
+                amountIn: new TokenAmount(amountInLamports, decimals),  // Amount of SOL or token being swapped
+                currencyOut: new Token(TOKEN_PROGRAM_ID, new PublicKey(newTokenMint), tokenOutDecimals), // The token you're getting
+                slippage: new Percent(1, 100),  // Slippage tolerance, 1%
               });
     
               console.log("Combining instructions");
