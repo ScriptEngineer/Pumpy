@@ -372,7 +372,7 @@ async function startSniper() {
           /*console.log(marketAccount);*/
           console.log("Getting market state...")
           const marketState = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data);
-          /*console.log(marketState);*/
+          console.log(marketState);
     
           if (poolData && marketState) {
 
