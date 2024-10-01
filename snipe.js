@@ -407,9 +407,9 @@ async function startSniper() {
             console.log("Pool Quote Mint: ", poolData.quoteMint);
             console.log("Pool LP Mint: ", poolData.lpMint);
 
-            console.log("Pool Base Decimal: ", poolData.baseDecimal);
-            console.log("Pool Quote Decimal: ", poolData.quoteDecimal);
-            console.log("Pool LP Decimal: ", poolData.lpDecimal);
+            console.log("Pool Base Decimal: ", Number.parseInt(poolData.baseDecimal.toString()));
+            console.log("Pool Quote Decimal: ", Number.parseInt(poolData.quoteDecimal.toString()));
+            console.log("Pool LP Decimal: ", Number.parseInt(poolData.baseDecimal.toString()));
             console.log("Pool Version: ", poolData.version);
             console.log("Pool Program ID: ", poolData.programId);
             console.log("Pool Authority: ", authority);
@@ -450,7 +450,7 @@ async function startSniper() {
               marketProgramId: marketState.programId,
               marketId: poolData.marketId, 
               marketAuthority: Market.getAssociatedAuthority({
-                programId: marketState.programId,
+                programId: marketProgramId,
                 marketId: marketState.ownAddress,
               }).publicKey,            
               marketBids: marketState.bids,
