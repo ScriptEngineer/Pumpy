@@ -366,15 +366,10 @@ async function startSniper() {
           const poolPubKey = new PublicKey(poolID);
           const poolAccountInfo = await connection.getAccountInfo(poolPubKey);
           const poolData = LIQUIDITY_STATE_LAYOUT_V4.decode(poolAccountInfo.data);
-
-          console.log("Getting market account...");
           const marketAccount = await connection.getAccountInfo(poolData.marketId);
           const marketProgramId = marketAccount.owner;
-          /*console.log(marketAccount);*/
-          console.log("Getting market state...")
           const marketState = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data);
-          console.log(marketState);
-    
+
           if (poolData && marketState) {
 
             console.log("Getting market authority...");
@@ -400,18 +395,17 @@ async function startSniper() {
 
             console.log("Building pool keys...");
           
+            /*
             console.log("\n");
             console.log("New token mint: ", newTokenMint);
             console.log("Pool ID: ", poolID);
             console.log("Pool Base Mint: ", poolData.baseMint);
             console.log("Pool Quote Mint: ", poolData.quoteMint);
             console.log("Pool LP Mint: ", poolData.lpMint);
-
             console.log("Pool Base Decimal: ", Number.parseInt(poolData.baseDecimal.toString()));
             console.log("Pool Quote Decimal: ", Number.parseInt(poolData.quoteDecimal.toString()));
             console.log("Pool LP Decimal: ", Number.parseInt(poolData.baseDecimal.toString()));
             console.log("Pool Version: ", poolData.version);
-            console.log("Pool Program ID: ", poolData.programId);
             console.log("Pool Authority: ", authority);
             console.log("Pool Open Orders: ", poolData.openOrders);
             console.log("Pool Target Orders: ", poolData.targetOrders);
@@ -419,14 +413,14 @@ async function startSniper() {
             console.log("Pool Quote Vault: ", poolData.quoteVault);
             console.log("Pool Market Program ID: ", poolData.marketProgramId);
             console.log("Pool Market ID: ", poolData.marketId);
-            console.log("Pool Market Authority: ", marketAuthority);
-            
+            console.log("Pool Market Authority: ", marketAuthority);      
             console.log("Market Bids: ", marketState.bids);
             console.log("Market Asks: ", marketState.asks);
             console.log("Market Event Queue: ", marketState.eventQueue);
             console.log("Market Base Vault: ", marketState.baseVault);
             console.log("Market Quote Vault: ", marketState.quoteVault);
             console.log("Market Authority2?: ", marketAuthority2);
+            */
     
             // Construct the poolKeys object
             const poolKeys = {
@@ -438,8 +432,8 @@ async function startSniper() {
               quoteDecimals: Number.parseInt(poolData.quoteDecimal.toString()),
               lpDecimals: Number.parseInt(poolData.baseDecimal.toString()),
               version: 4,
-              /*programId: LIQUIDITY_PROGRAM_ID_V4,*/
-              programId: poolData.programId,
+              programId: LIQUIDITY_PROGRAM_ID_V4,
+              /*programId: poolData.programId,*/
               authority: authority,
               openOrders: poolData.openOrders,
               targetOrders: poolData.targetOrders,
@@ -447,7 +441,7 @@ async function startSniper() {
               quoteVault: poolData.quoteVault,
               marketVersion: 3,
               /*marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,*/
-              marketProgramId: marketState.programId,
+              marketProgramId: marketProgramId,
               marketId: poolData.marketId, 
               marketAuthority: Market.getAssociatedAuthority({
                 programId: marketProgramId,
@@ -463,41 +457,7 @@ async function startSniper() {
               lpVault: poolData.lpVault,
               lookupTableAccount: PublicKey.default
             };
-
-            /*
-            const poolKeys = {
-              id: pool.id,
-              baseMint: pool.baseMint,
-              quoteMint: pool.quoteMint,
-              lpMint: pool.lpMint,
-              baseDecimals: Number.parseInt(pool.baseDecimal.toString()),
-              quoteDecimals: Number.parseInt(pool.quoteDecimal.toString()),
-              lpDecimals: Number.parseInt(pool.baseDecimal.toString()),
-              version: pool.version,
-              programId: pool.programId,
-              openOrders: pool.openOrders,
-              targetOrders: pool.targetOrders,
-              baseVault: pool.baseVault,
-              quoteVault: pool.quoteVault,
-              marketVersion: 3,
-              authority: authority,
-              marketProgramId,
-              marketId: market.ownAddress,
-              marketAuthority: Market.getAssociatedAuthority({
-                programId: marketProgramId,
-                marketId: market.ownAddress,
-              }).publicKey,
-              marketBaseVault: market.baseVault,
-              marketQuoteVault: market.quoteVault,
-              marketBids: market.bids,
-              marketAsks: market.asks,
-              marketEventQueue: market.eventQueue,
-              withdrawQueue: pool.withdrawQueue,
-              lpVault: pool.lpVault,
-              lookupTableAccount: PublicKey.default,
-            } as LiquidityPoolKeys;
-            */
-    
+            
             console.log('Pool Keys:', poolKeys);
     
             if (!tokenBought && poolKeys) {
