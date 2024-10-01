@@ -478,6 +478,7 @@ async function startSniper() {
               console.log("Getting pool info with pool keys...");
               const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
               
+              
               console.log("Getting token ouput info...");
               const tokenOutMint = new PublicKey(newTokenMint);
               const mintInfo = await connection.getParsedAccountInfo(tokenOutMint);
