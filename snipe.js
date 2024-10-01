@@ -439,10 +439,10 @@ async function startSniper() {
               const currencyIn = new Token(TOKEN_PROGRAM_ID, WSOL_MINT, decimals);
               const amountIn = new TokenAmount(currencyIn, amountInLamports.toString(), false);
               
-              // Fetch pool info
+              console.log("Getting pool info with pool keys...");
               const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
               
-              // Get token output info
+              console.log("Getting token ouput info...");
               const tokenOutMint = new PublicKey(newTokenMint);
               const mintInfo = await connection.getParsedAccountInfo(tokenOutMint);
               const tokenOutDecimals = mintInfo.value.data.parsed.info.decimals;
