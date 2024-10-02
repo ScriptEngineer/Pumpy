@@ -57,52 +57,6 @@ const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey('5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT
 const RAYDIUM_SWAP_PROGRAM = '5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS';
 let tokenBought = false;
 
-async function writeJsonToFile(jsonData, filePath) {
-  try {
-    const writeStream = fs.createWriteStream(filePath);
-
-    writeStream.write(JSON.stringify(jsonData, null, 2)); // Pretty prints the JSON with indentation
-    writeStream.end(); // Closes the stream
-
-    writeStream.on('finish', () => {
-      console.log(`${filePath} written successfully.`);
-    });
-
-    writeStream.on('error', (error) => {
-      console.error(`Error writing ${filePath}:`, error);
-    });
-
-  } catch (error) {
-    console.error(`Failed to write JSON to file: ${error.message}`);
-  }
-}
-
-async function writeLargeJsonToFile(jsonData, filePath) {
-  try {
-    const writeStream = fs.createWriteStream(filePath);
-    const jsonStream = JSONStream.stringify('[\n', ',\n', '\n]\n');
-
-    jsonStream.pipe(writeStream);
-
-    for (const data of jsonData) {
-      jsonStream.write(data); // Write each object to the stream
-    }
-
-    jsonStream.end(); // Finish the stream
-
-    jsonStream.on('end', () => {
-      console.log(`${filePath} written successfully.`);
-    });
-
-    writeStream.on('error', (error) => {
-      console.error(`Error writing ${filePath}:`, error);
-    });
-
-  } catch (error) {
-    console.error(`Failed to write JSON to file: ${error.message}`);
-  }
-}
-
 async function getTokenMetadata(mintAddress) {
   const heliusUrl = `https://api.helius.xyz/v0/tokens/metadata?api-key=${process.env.HELIUS_API_KEY}`;  // API URL with your Helius API key
 
@@ -395,32 +349,32 @@ async function startSniper() {
 
             console.log("Building pool keys...");
           
-            /*
-            console.log("\n");
-            console.log("New token mint: ", newTokenMint);
-            console.log("Pool ID: ", poolID);
-            console.log("Pool Base Mint: ", poolData.baseMint);
-            console.log("Pool Quote Mint: ", poolData.quoteMint);
-            console.log("Pool LP Mint: ", poolData.lpMint);
-            console.log("Pool Base Decimal: ", Number.parseInt(poolData.baseDecimal.toString()));
-            console.log("Pool Quote Decimal: ", Number.parseInt(poolData.quoteDecimal.toString()));
-            console.log("Pool LP Decimal: ", Number.parseInt(poolData.baseDecimal.toString()));
-            console.log("Pool Version: ", poolData.version);
-            console.log("Pool Authority: ", authority);
-            console.log("Pool Open Orders: ", poolData.openOrders);
-            console.log("Pool Target Orders: ", poolData.targetOrders);
-            console.log("Pool Base Vault: ", poolData.baseVault);
-            console.log("Pool Quote Vault: ", poolData.quoteVault);
-            console.log("Pool Market Program ID: ", poolData.marketProgramId);
-            console.log("Pool Market ID: ", poolData.marketId);
-            console.log("Pool Market Authority: ", marketAuthority);      
-            console.log("Market Bids: ", marketState.bids);
-            console.log("Market Asks: ", marketState.asks);
-            console.log("Market Event Queue: ", marketState.eventQueue);
-            console.log("Market Base Vault: ", marketState.baseVault);
-            console.log("Market Quote Vault: ", marketState.quoteVault);
-            console.log("Market Authority2?: ", marketAuthority2);
-            */
+            console.log('Pool Keys RAW:', {
+              id: poolKeys.id.toBase58(),
+              baseMint: poolKeys.baseMint.toBase58(),
+              quoteMint: poolKeys.quoteMint.toBase58(),
+              lpMint: poolKeys.lpMint.toBase58(),
+              authority: poolKeys.authority.toBase58(),
+              openOrders: poolKeys.openOrders.toBase58(),
+              targetOrders: poolKeys.targetOrders.toBase58(),
+              baseVault: poolKeys.baseVault.toBase58(),
+              quoteVault: poolKeys.quoteVault.toBase58(),
+              marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET.toBase58(),
+              marketId: poolKeys.marketId.toBase58(),
+              marketAuthority:  Market.getAssociatedAuthority({
+                programId: marketProgramId,
+                marketId: marketState.ownAddress,
+              }).toBase58(),
+              marketBids: poolKeys.marketBids.toBase58(),
+              marketAsks: poolKeys.marketAsks.toBase58(),
+              marketEventQueue: poolKeys.marketEventQueue.toBase58(),
+              marketBaseVault: poolKeys.marketBaseVault.toBase58(),
+              marketQuoteVault: poolKeys.marketQuoteVault.toBase58(),
+              withdrawQueue: poolKeys.withdrawQueue.toBase58(),
+              lpVault: poolKeys.lpVault.toBase58(),
+              lookupTableAccount: PublicKey.default.toBase58(),
+            });
+            
     
             // Construct the poolKeys object
             const poolKeys = {
