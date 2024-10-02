@@ -18,19 +18,21 @@ const {
   ACCOUNT_SIZE, // Import ACCOUNT_SIZE constant
 } = require('@solana/spl-token');
 
-const {
+import {
   Liquidity,
-  LIQUIDITY_POOLS,
-  LIQUIDITY_STATE_LAYOUT_V4,
   LiquidityPoolKeys,
-  MAINNET_PROGRAM_ID,
-  MARKET_STATE_LAYOUT_V3,
+  jsonInfo2PoolKeys,
+  LiquidityPoolJsonInfo,
   TokenAccount,
   Token,
   TokenAmount,
+  TOKEN_PROGRAM_ID,
   Percent,
+  SPL_ACCOUNT_LAYOUT,
+  LIQUIDITY_STATE_LAYOUT_V4,
+  MARKET_STATE_LAYOUT_V3,
   Market,
-} = require('@raydium-io/raydium-sdk');
+} from '@raydium-io/raydium-sdk'
 
 const JSONStream = require('JSONStream'); 
 const express = require('express');
@@ -402,7 +404,7 @@ async function startSniper() {
               marketAuthority:  Market.getAssociatedAuthority({
                 programId: marketProgramId,
                 marketId: marketState.ownAddress,
-              }).toBase58(),
+              }),
               marketBids: poolKeys.marketBids.toBase58(),
               marketAsks: poolKeys.marketAsks.toBase58(),
               marketEventQueue: poolKeys.marketEventQueue.toBase58(),
