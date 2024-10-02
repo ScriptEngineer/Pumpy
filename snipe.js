@@ -347,34 +347,7 @@ async function startSniper() {
               marketId: marketState.ownAddress,
             }).publicKey;            
 
-            console.log("Building pool keys...");
-          
-            console.log('Pool Keys RAW:', {
-              id: poolKeys.id.toBase58(),
-              baseMint: poolKeys.baseMint.toBase58(),
-              quoteMint: poolKeys.quoteMint.toBase58(),
-              lpMint: poolKeys.lpMint.toBase58(),
-              authority: poolKeys.authority.toBase58(),
-              openOrders: poolKeys.openOrders.toBase58(),
-              targetOrders: poolKeys.targetOrders.toBase58(),
-              baseVault: poolKeys.baseVault.toBase58(),
-              quoteVault: poolKeys.quoteVault.toBase58(),
-              marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET.toBase58(),
-              marketId: poolKeys.marketId.toBase58(),
-              marketAuthority:  Market.getAssociatedAuthority({
-                programId: marketProgramId,
-                marketId: marketState.ownAddress,
-              }).toBase58(),
-              marketBids: poolKeys.marketBids.toBase58(),
-              marketAsks: poolKeys.marketAsks.toBase58(),
-              marketEventQueue: poolKeys.marketEventQueue.toBase58(),
-              marketBaseVault: poolKeys.marketBaseVault.toBase58(),
-              marketQuoteVault: poolKeys.marketQuoteVault.toBase58(),
-              withdrawQueue: poolKeys.withdrawQueue.toBase58(),
-              lpVault: poolKeys.lpVault.toBase58(),
-              lookupTableAccount: PublicKey.default.toBase58(),
-            });
-            
+            console.log("Building pool keys...");    
     
             // Construct the poolKeys object
             const poolKeys = {
@@ -413,6 +386,32 @@ async function startSniper() {
             };
 
             console.log('Pool Keys:', poolKeys);
+
+            console.log('Pool Keys RAW:', {
+              id: poolKeys.id.toBase58(),
+              baseMint: poolKeys.baseMint.toBase58(),
+              quoteMint: poolKeys.quoteMint.toBase58(),
+              lpMint: poolKeys.lpMint.toBase58(),
+              authority: poolKeys.authority.toBase58(),
+              openOrders: poolKeys.openOrders.toBase58(),
+              targetOrders: poolKeys.targetOrders.toBase58(),
+              baseVault: poolKeys.baseVault.toBase58(),
+              quoteVault: poolKeys.quoteVault.toBase58(),
+              marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET.toBase58(),
+              marketId: poolKeys.marketId.toBase58(),
+              marketAuthority:  Market.getAssociatedAuthority({
+                programId: marketProgramId,
+                marketId: marketState.ownAddress,
+              }).toBase58(),
+              marketBids: poolKeys.marketBids.toBase58(),
+              marketAsks: poolKeys.marketAsks.toBase58(),
+              marketEventQueue: poolKeys.marketEventQueue.toBase58(),
+              marketBaseVault: poolKeys.marketBaseVault.toBase58(),
+              marketQuoteVault: poolKeys.marketQuoteVault.toBase58(),
+              withdrawQueue: poolKeys.withdrawQueue.toBase58(),
+              lpVault: poolKeys.lpVault.toBase58(),
+              lookupTableAccount: PublicKey.default.toBase58(),
+            });
     
             if (!tokenBought && poolKeys) {
 
