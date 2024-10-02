@@ -347,46 +347,15 @@ async function startSniper() {
               programId: new PublicKey(RAYDIUM_AMM_PROGRAM_ID),
             }).publicKey;
 
+            /*
             console.log("Getting market authority 2...");
             const marketAuthority2= Market.getAssociatedAuthority({
               programId: marketProgramId,
               marketId: marketState.ownAddress,
-            }).publicKey;            
+            }).publicKey;   
+            */         
 
             console.log("Building pool keys...");    
-    
-            // Construct the poolKeys object
-            /*
-            const poolKeys = {
-              id: poolPubKey,
-              baseMint: new PublicKey('So11111111111111111111111111111111111111112'),
-              quoteMint: tokenKey,
-              lpMint: poolData.lpMint,
-              baseDecimals: Number.parseInt(poolData.baseDecimal.toString()),
-              quoteDecimals: Number.parseInt(poolData.quoteDecimal.toString()),
-              lpDecimals: Number.parseInt(poolData.baseDecimal.toString()),
-              version: 4,
-              programId: new PublicKey('675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8'),
-              authority: authority,
-              openOrders: poolData.openOrders,
-              targetOrders: poolData.targetOrders,
-              baseVault: poolData.baseVault,
-              quoteVault: poolData.quoteVault,
-              withdrawQueue: poolData.withdrawQueue,      
-              lpVault: poolData.lpVault,
-              marketVersion: 4,
-              marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
-              marketId: poolData.marketId, 
-              marketAuthority: marketAuthority2,            
-              marketBaseVault: marketState.baseVault,
-              marketQuoteVault: marketState.quoteVault,
-              marketBids: marketState.bids,
-              marketAsks: marketState.asks,
-              marketEventQueue: marketState.eventQueue,
-              lookupTableAccount: PublicKey.default
-            };
-            */
-
             const poolKeys = {
               id: poolPubKey,
               baseMint: new PublicKey('So11111111111111111111111111111111111111112'),
