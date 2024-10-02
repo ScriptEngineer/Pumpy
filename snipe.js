@@ -18,7 +18,7 @@ const {
   ACCOUNT_SIZE, // Import ACCOUNT_SIZE constant
 } = require('@solana/spl-token');
 
-import {
+const {
   Liquidity,
   LiquidityPoolKeys,
   jsonInfo2PoolKeys,
@@ -32,7 +32,7 @@ import {
   LIQUIDITY_STATE_LAYOUT_V4,
   MARKET_STATE_LAYOUT_V3,
   Market,
-} from '@raydium-io/raydium-sdk'
+} = require('@raydium-io/raydium-sdk');
 
 const JSONStream = require('JSONStream'); 
 const express = require('express');
