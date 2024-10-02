@@ -299,8 +299,6 @@ async function startSniper() {
         if (data.source === 'RAYDIUM') {
           console.log('RAYDIUM LIQUIDITY POOL CREATED');
 
-          console.log(data);
-    
           const tokenTransfers = data.tokenTransfers;
           const accountData = data.accountData;
           let newTokenMint = tokenTransfers[0]?.mint;
@@ -320,6 +318,9 @@ async function startSniper() {
             res.status(500).send('Error');
             return;
           }
+
+          console.log("Pool ID:", poolID);
+          console.log("New Token Mint:", newTokenMint);
     
           const tokenKey = new PublicKey(newTokenMint);
           const poolPubKey = new PublicKey(poolID);
@@ -355,28 +356,26 @@ async function startSniper() {
             console.log("Building pool keys...");    
     
             // Construct the poolKeys object
+            /*
             const poolKeys = {
               id: poolPubKey,
               baseMint: new PublicKey('So11111111111111111111111111111111111111112'),
-              quoteMint: poolData.baseMint,
+              quoteMint: tokenKey,
               lpMint: poolData.lpMint,
               baseDecimals: Number.parseInt(poolData.baseDecimal.toString()),
               quoteDecimals: Number.parseInt(poolData.quoteDecimal.toString()),
               lpDecimals: Number.parseInt(poolData.baseDecimal.toString()),
               version: 4,
-              programId: LIQUIDITY_PROGRAM_ID_V4,
-              /*programId: poolData.programId,*/
+              programId: new PublicKey('675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8'),
               authority: authority,
               openOrders: poolData.openOrders,
               targetOrders: poolData.targetOrders,
-              /* Needs to be baseVault of SOL? */
               baseVault: poolData.baseVault,
               quoteVault: poolData.quoteVault,
               withdrawQueue: poolData.withdrawQueue,      
               lpVault: poolData.lpVault,
               marketVersion: 4,
               marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
-              /*marketProgramId: marketProgramId,*/
               marketId: poolData.marketId, 
               marketAuthority: marketAuthority2,            
               marketBaseVault: marketState.baseVault,
@@ -386,37 +385,64 @@ async function startSniper() {
               marketEventQueue: marketState.eventQueue,
               lookupTableAccount: PublicKey.default
             };
+            */
 
-            console.log('Pool Keys:', poolKeys);
+            const poolKeys = {
+              id: poolPubKey,
+              baseMint: new PublicKey('So11111111111111111111111111111111111111112'),
+              quoteMint: tokenKey,
+              lpMint: poolData.lpMint,
+              baseDecimals: 9,
+              quoteDecimals: 6,
+              lpDecimals: 9,
+              version: 4,
+              programId: new PublicKey('675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8'),
+              authority: authority,
+              openOrders: poolData.openOrders,
+              targetOrders: poolData.targetOrders,
+              baseVault: poolData.baseVault,
+              quoteVault: poolData.quoteVault,
+              withdrawQueue: poolData.withdrawQueue,      
+              lpVault: poolData.lpVault,
+              marketVersion: 4,
+              marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
+              marketId: poolData.marketId, 
+              marketAuthority: marketAuthority1,            
+              marketBaseVault: marketState.baseVault,
+              marketQuoteVault: marketState.quoteVault,
+              marketBids: marketState.bids,
+              marketAsks: marketState.asks,
+              marketEventQueue: marketState.eventQueue,
+              lookupTableAccount: PublicKey.default
+            };
 
             console.log('Pool Keys RAW:', {
-              id: poolKeys.id.toBase58(),
+              id: poolID,
               baseMint: 'So11111111111111111111111111111111111111112',
-              quoteMint: poolData.baseMint.toBase58(),
-              lpMint: poolKeys.lpMint.toBase58(),
-              baseDecimals: Number.parseInt(poolData.baseDecimal.toString()),
-              quoteDecimals: Number.parseInt(poolData.quoteDecimal.toString()),
-              lpDecimals: Number.parseInt(poolData.baseDecimal.toString()),
+              quoteMint: newTokenMint,
+              lpMint: poolData.lpMint.toBase58(),
+              baseDecimals: 9,
+              quoteDecimals: 6,
+              lpDecimals: 9,
               version: 4,
-              programId: LIQUIDITY_PROGRAM_ID_V4.toBase58(),
-              authority: poolKeys.authority.toBase58(),
-              openOrders: poolKeys.openOrders.toBase58(),
-              targetOrders: poolKeys.targetOrders.toBase58(),
-              /* Needs to be baseVault of SOL? */
-              baseVault: poolKeys.baseVault.toBase58(),
-              quoteVault: poolKeys.quoteVault.toBase58(),
-              withdrawQueue: poolKeys.withdrawQueue.toBase58(),
-              lpVault: poolKeys.lpVault.toBase58(),
+              programId: '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8',
+              authority: authority.toBase58(),
+              openOrders: poolData.openOrders.toBase58(),
+              targetOrders: poolData.targetOrders.toBase58(),
+              baseVault: poolData.baseVault.toBase58(),
+              quoteVault: poolData.quoteVault.toBase58(),
+              withdrawQueue: poolData.withdrawQueue.toBase58(),      
+              lpVault: poolData.lpVault.toBase58(),
               marketVersion: 4,
               marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET.toBase58(),
-              marketId: poolKeys.marketId.toBase58(),
-              marketAuthority:  marketAuthority2.toBase58(),
-              marketBaseVault: poolKeys.marketBaseVault.toBase58(),
-              marketQuoteVault: poolKeys.marketQuoteVault.toBase58(),
-              marketBids: poolKeys.marketBids.toBase58(),
-              marketAsks: poolKeys.marketAsks.toBase58(),
-              marketEventQueue: poolKeys.marketEventQueue.toBase58(),
-              lookupTableAccount: PublicKey.default.toBase58(),
+              marketId: poolData.marketId.toBase58(), 
+              marketAuthority: marketAuthority1.toBase58(),            
+              marketBaseVault: marketState.baseVault.toBase58(),
+              marketQuoteVault: marketState.quoteVault.toBase58(),
+              marketBids: marketState.bids.toBase58(),
+              marketAsks: marketState.asks.toBase58(),
+              marketEventQueue: marketState.eventQueue.toBase58(),
+              lookupTableAccount: PublicKey.default.toBase58()
             });
     
             if (!tokenBought && poolKeys) {
