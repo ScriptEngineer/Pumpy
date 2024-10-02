@@ -330,7 +330,7 @@ async function startSniper() {
           if (poolData && marketState) {
 
             console.log("Getting market authority...");
-            const marketAuthority = PublicKey.createProgramAddressSync(
+            const marketAuthority1 = PublicKey.createProgramAddressSync(
               [
                 marketState.ownAddress.toBuffer(),
                 marketState.vaultSignerNonce.toArrayLike(Buffer, "le", 8),
@@ -345,7 +345,7 @@ async function startSniper() {
             }).publicKey;
 
             console.log("Getting market authority 2...");
-            const marketAuthority2 = Market.getAssociatedAuthority({
+            const marketAuthority2= Market.getAssociatedAuthority({
               programId: marketProgramId,
               marketId: marketState.ownAddress,
             }).publicKey;            
@@ -355,8 +355,8 @@ async function startSniper() {
             // Construct the poolKeys object
             const poolKeys = {
               id: poolPubKey,
-              baseMint: poolData.baseMint,
-              quoteMint: poolData.quoteMint,
+              baseMint: new PublicKey('So11111111111111111111111111111111111111112'),
+              quoteMint: poolData.baseMint,
               lpMint: poolData.lpMint,
               baseDecimals: Number.parseInt(poolData.baseDecimal.toString()),
               quoteDecimals: Number.parseInt(poolData.quoteDecimal.toString()),
@@ -367,24 +367,21 @@ async function startSniper() {
               authority: authority,
               openOrders: poolData.openOrders,
               targetOrders: poolData.targetOrders,
+              /* Needs to be baseVault of SOL? */
               baseVault: poolData.baseVault,
               quoteVault: poolData.quoteVault,
-              marketVersion: 3,
+              withdrawQueue: poolData.withdrawQueue,      
+              lpVault: poolData.lpVault,
+              marketVersion: 4,
               marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
               /*marketProgramId: marketProgramId,*/
               marketId: poolData.marketId, 
-              marketAuthority: Market.getAssociatedAuthority({
-                programId: marketProgramId,
-                marketId: marketState.ownAddress,
-              }).publicKey,            
+              marketAuthority: marketAuthority2,            
+              marketBaseVault: marketState.baseVault,
+              marketQuoteVault: marketState.quoteVault,
               marketBids: marketState.bids,
               marketAsks: marketState.asks,
               marketEventQueue: marketState.eventQueue,
-              marketBaseVault: marketState.baseVault,
-              marketQuoteVault: marketState.quoteVault,
-              marketAuthority: marketAuthority, 
-              withdrawQueue: poolData.withdrawQueue,      
-              lpVault: poolData.lpVault,
               lookupTableAccount: PublicKey.default
             };
 
@@ -392,27 +389,31 @@ async function startSniper() {
 
             console.log('Pool Keys RAW:', {
               id: poolKeys.id.toBase58(),
-              baseMint: poolKeys.baseMint.toBase58(),
-              quoteMint: poolKeys.quoteMint.toBase58(),
+              baseMint: 'So11111111111111111111111111111111111111112',
+              quoteMint: poolData.baseMint.toBase58(),
               lpMint: poolKeys.lpMint.toBase58(),
+              baseDecimals: Number.parseInt(poolData.baseDecimal.toString()),
+              quoteDecimals: Number.parseInt(poolData.quoteDecimal.toString()),
+              lpDecimals: Number.parseInt(poolData.baseDecimal.toString()),
+              version: 4,
+              programId: LIQUIDITY_PROGRAM_ID_V4.toBase58(),
               authority: poolKeys.authority.toBase58(),
               openOrders: poolKeys.openOrders.toBase58(),
               targetOrders: poolKeys.targetOrders.toBase58(),
+              /* Needs to be baseVault of SOL? */
               baseVault: poolKeys.baseVault.toBase58(),
               quoteVault: poolKeys.quoteVault.toBase58(),
+              withdrawQueue: poolKeys.withdrawQueue.toBase58(),
+              lpVault: poolKeys.lpVault.toBase58(),
+              marketVersion: 4,
               marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET.toBase58(),
               marketId: poolKeys.marketId.toBase58(),
-              marketAuthority:  Market.getAssociatedAuthority({
-                programId: marketProgramId,
-                marketId: marketState.ownAddress,
-              }),
+              marketAuthority:  marketAuthority2.toBase58(),
+              marketBaseVault: poolKeys.marketBaseVault.toBase58(),
+              marketQuoteVault: poolKeys.marketQuoteVault.toBase58(),
               marketBids: poolKeys.marketBids.toBase58(),
               marketAsks: poolKeys.marketAsks.toBase58(),
               marketEventQueue: poolKeys.marketEventQueue.toBase58(),
-              marketBaseVault: poolKeys.marketBaseVault.toBase58(),
-              marketQuoteVault: poolKeys.marketQuoteVault.toBase58(),
-              withdrawQueue: poolKeys.withdrawQueue.toBase58(),
-              lpVault: poolKeys.lpVault.toBase58(),
               lookupTableAccount: PublicKey.default.toBase58(),
             });
     
@@ -513,6 +514,7 @@ async function startSniper() {
     
               // Set tokenBought to true after purchasing to prevent repeated buys
               tokenBought = true;
+              
             }
     
           } else {
