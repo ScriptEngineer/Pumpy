@@ -298,6 +298,8 @@ async function startSniper() {
     
         if (data.source === 'RAYDIUM') {
           console.log('RAYDIUM LIQUIDITY POOL CREATED');
+
+          console.log(data);
     
           const tokenTransfers = data.tokenTransfers;
           const accountData = data.accountData;
@@ -514,7 +516,7 @@ async function startSniper() {
     
               // Set tokenBought to true after purchasing to prevent repeated buys
               tokenBought = true;
-              
+
             }
     
           } else {
