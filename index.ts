@@ -38,7 +38,7 @@ import {
   Market,
 } from '@raydium-io/raydium-sdk';
 
-//import { Bundle as JitoBundle } from "jito-ts/dist/sdk/block-engine/types.js";
+/*import { Bundle as JitoBundle } from "jito-ts/dist/sdk/block-engine/types.js";*/
 import { searcherClient } from "./src/jito";
 import { getRandomTipAccount } from "./src/config";
 import express from 'express';
@@ -301,7 +301,6 @@ async function calcAmountOut(
 
 async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
 	try {
-
     /*
 		const bundleId = await searcherClient.sendBundle(new JitoBundle(bundledTxns, bundledTxns.length));
 		console.log(`Bundle ${bundleId} sent.`);
@@ -565,12 +564,7 @@ async function startSniper(): Promise<void> {
               );
 
               console.log("Creating tip for Jito");
-              const tipIxn = SystemProgram.transfer({
-                fromPubkey: wallet.publicKey,
-                toPubkey: getRandomTipAccount(),
-                lamports: BigInt(tipAmt),
-            });
-
+    
               console.log('Combining instructions');
               const allInstructions: TransactionInstruction[] = [...preInstructions, ...instructions, ...postInstructions];
               const { blockhash } = await connection.getLatestBlockhash('confirmed');
@@ -584,14 +578,23 @@ async function startSniper(): Promise<void> {
               const signers: Signer[] = [wallet, wrappedSolAccount];
               transaction.sign(signers);
 
+              
+              /*          
               bundledTxns.push(transaction);
               const serializedTransaction = transaction.serialize();
               const base64EncodedTransaction = serializedTransaction.toString();
 
+              const tipIxn = SystemProgram.transfer({
+                fromPubkey: wallet.publicKey,
+                toPubkey: getRandomTipAccount(),
+                lamports: BigInt(tipAmt),
+              });
+
               console.log('Sending transaction to Jito');
               await sendBundleToJito(bundledTxns);
+              */
 
-              // Set tokenBought to true after purchasing to prevent repeated buys
+              /* Set tokenBought to true after purchasing to prevent repeated buys */
               tokenBought = true;
             }
           } else {
