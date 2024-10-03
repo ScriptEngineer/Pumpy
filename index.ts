@@ -38,7 +38,7 @@ import {
   Market,
 } from '@raydium-io/raydium-sdk';
 
-import JSONStream from 'JSONStream';
+//import { Bundle as JitoBundle } from "jito-ts/dist/sdk/block-engine/types.js";
 import { searcherClient } from "./src/jito";
 import { getRandomTipAccount } from "./src/config";
 import express from 'express';
@@ -301,26 +301,27 @@ async function calcAmountOut(
 
 async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
 	try {
+
+    /*
 		const bundleId = await searcherClient.sendBundle(new JitoBundle(bundledTxns, bundledTxns.length));
 		console.log(`Bundle ${bundleId} sent.`);
 
-		///*
-		// Assuming onBundleResult returns a Promise<BundleResult>
 		const result = await new Promise((resolve, reject) => {
 			searcherClient.onBundleResult(
 				(result) => {
 					console.log("Received bundle result:", result);
-					resolve(result); // Resolve the promise with the result
+					resolve(result); 
 				},
 				(e: Error) => {
 					console.error("Error receiving bundle result:", e);
-					reject(e); // Reject the promise if there's an error
+					reject(e); 
 				}
 			);
 		});
 
 		console.log("Result:", result);
-		//*/
+    */
+
 	} catch (error) {
 		const err = error as any;
 		console.error("Error sending bundle:", err.message);
