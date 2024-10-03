@@ -4,6 +4,9 @@ const {
   Keypair,
   Connection,
   Transaction,
+  VersionedTransaction,
+  TransactionMessage,
+  MessageV0,
   PublicKey,
   LAMPORTS_PER_SOL,
   sendAndConfirmTransaction,
@@ -466,7 +469,6 @@ async function startSniper() {
               const transferAmount = 0.01; // Amount of SOL to spend
               const swapInDirection = poolKeys.baseMint.equals(WSOL_MINT);
               const wrappedSolAccount = Keypair.generate();
-              const signers = [wrappedSolAccount];
               const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
               const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
               const lamportsForWSOL = amountInLamports + rentExemptLamports;
@@ -542,17 +544,22 @@ async function startSniper() {
               const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean);
                               
               console.log("Combining instructions");
-              const transaction = new Transaction();
-              transaction.add(...preInstructions, ...instructions, ...postInstructions);         
-              transaction.feePayer = wallet.publicKey; 
-  
+              const allInstructions = [...preInstructions, ...instructions, ...postInstructions];
+              
               const { blockhash } = await connection.getLatestBlockhash('confirmed');
-              transaction.recentBlockhash = blockhash;
-              transaction.sign(wallet, wrappedSolAccount);
+              
+              const messageV0 = new TransactionMessage({
+                payerKey: wallet.publicKey,
+                recentBlockhash: blockhash,
+                instructions: allInstructions,
+              }).compileToV0Message();
+              
+              const transaction = new VersionedTransaction(messageV0);
+              const signers = [wallet, wrappedSolAccount];
+              transaction.sign(signers);
     
               const serializedTransaction = transaction.serialize();
               const base64EncodedTransaction = serializedTransaction.toString('base64');
-
 
               console.log("Sending transaction to Jito");
               await sendBundleToJito([base64EncodedTransaction]);
