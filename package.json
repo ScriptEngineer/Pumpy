@@ -5,7 +5,7 @@
   "main": "pump_fun.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node ./src/index.ts",
+    "start": "ts-node ./index.ts",
     "snipe": "node snipe.js"
   },
   "author": "",
@@ -24,5 +24,8 @@
     "isomorphic-fetch": "^3.0.0",
     "JSONStream": "^1.3.5",
     "node-fetch": "^2.6.9"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
   }
 }
