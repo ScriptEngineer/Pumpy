@@ -93,6 +93,18 @@ async function getTokenMetadata(mintAddress) {
   }
 }
 
+async function getOwnerTokenAccounts() {
+  const walletTokenAccounts = await connection.getTokenAccountsByOwner(wallet.publicKey, {
+    programId: TOKEN_PROGRAM_ID,
+  });
+
+  return walletTokenAccounts.value.map((i) => ({
+    pubkey: i.pubkey,
+    programId: i.account.owner,
+    accountInfo: SPL_ACCOUNT_LAYOUT.decode(i.account.data),
+  }));
+}
+
 async function mainMenu() {
   const { select, input, Separator } = await import('@inquirer/prompts');
   
@@ -482,26 +494,39 @@ async function startSniper() {
               );
     
               console.log("Creating swap instruction");
-              const swapInstructions = await Liquidity.makeSwapInstructionSimple({
-                connection,                  // Solana connection object
-                poolKeys,                    // The poolKeys object with pool info
-                userKeys: {                  // User keys for the swap
+              const userTokenAccounts = await getOwnerTokenAccounts();
+
+              // Prepare the swap transaction
+              console.log("Creating swap instruction");
+              const swapTransaction = await Liquidity.makeSwapInstructionSimple({
+                connection,
+                poolKeys,
+                userKeys: {
+                  tokenAccounts: userTokenAccounts,
                   owner: wallet.publicKey,
                 },
-                amountIn: new TokenAmount(amountInLamports, decimals),  // Amount of SOL or token being swapped
-                currencyOut: new Token(TOKEN_PROGRAM_ID, new PublicKey(newTokenMint), tokenOutDecimals), // The token you're getting
-                slippage: new Percent(1, 100),  // Slippage tolerance, 1%
+                amountIn: amountIn,
+                amountOut: minAmountOut,
+                fixedSide: 'in',
+                config: {
+                  bypassAssociatedCheck: false,
+                },
+                computeBudgetConfig: {
+                  microLamports: priorityMicroLamports,
+                },
               });
-    
+              
+              // Extract the instructions from the swap transaction
+              const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean);
+                  
               console.log("Combining instructions");
               const transaction = new Transaction();
-              transaction.add(...preInstructions, ...swapInstructions, ...postInstructions);         
+              transaction.add(...preInstructions, ...instructions, ...postInstructions);         
               transaction.feePayer = wallet.publicKey; 
-              signers.push(...swapSigners);
-    
+  
               const { blockhash } = await connection.getLatestBlockhash('confirmed');
               transaction.recentBlockhash = blockhash;
-              transaction.sign(...[wallet, ...signers]);
+              transaction.sign(wallet);
     
               const serializedTransaction = transaction.serialize();
               const base64EncodedTransaction = serializedTransaction.toString('base64');
