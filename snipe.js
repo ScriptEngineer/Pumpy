@@ -254,6 +254,41 @@ function isValidPublicKeyData(data) {
   return data instanceof PublicKey && data.toBase58() !== '11111111111111111111111111111111';
 }
 
+async function calcAmountOut(poolKeys, rawAmountIn, slippage = 1, swapInDirection = true) {
+  const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
+
+  let currencyInMint = poolKeys.baseMint;
+  let currencyInDecimals = poolInfo.baseDecimals;
+  let currencyOutMint = poolKeys.quoteMint;
+  let currencyOutDecimals = poolInfo.quoteDecimals;
+
+  if (!swapInDirection) {
+    currencyInMint = poolKeys.quoteMint;
+    currencyInDecimals = poolInfo.quoteDecimals;
+    currencyOutMint = poolKeys.baseMint;
+    currencyOutDecimals = poolInfo.baseDecimals;
+  }
+
+  const currencyIn = new Token(TOKEN_PROGRAM_ID, currencyInMint, currencyInDecimals);
+  const amountIn = new TokenAmount(currencyIn, rawAmountIn.toFixed(currencyInDecimals), false);
+  const currencyOut = new Token(TOKEN_PROGRAM_ID, currencyOutMint, currencyOutDecimals);
+  const slippagePercent = new Percent(slippage, 100); // e.g., 1% slippage
+
+  const { amountOut, minAmountOut } = Liquidity.computeAmountOut({
+    poolKeys,
+    poolInfo,
+    amountIn,
+    currencyOut,
+    slippage: slippagePercent,
+  });
+
+  return {
+    amountIn,
+    amountOut,
+    minAmountOut,
+  };
+}
+
 async function sendBundleToJito(transactions) {
   try {
     const payload = {
@@ -429,6 +464,7 @@ async function startSniper() {
             if (!tokenBought && poolKeys) {
 
               const transferAmount = 0.01; // Amount of SOL to spend
+              const swapInDirection = poolKeys.baseMint.equals(WSOL_MINT);
               const wrappedSolAccount = Keypair.generate();
               const signers = [wrappedSolAccount];
               const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
@@ -437,9 +473,14 @@ async function startSniper() {
               const priorityMicroLamports = 5000; // Priority fee
               const decimals = 9; // SOL has 9 decimals
               
+              const {
+                amountIn,
+                amountOut,
+                minAmountOut,
+              } = await calcAmountOut(poolKeys, transferAmount, 1, swapInDirection);
+
               // Create TokenAmount for amountIn
               const currencyIn = new Token(TOKEN_PROGRAM_ID, WSOL_MINT, decimals);
-              const amountIn = new TokenAmount(currencyIn, amountInLamports.toString(), false);
               
               console.log("Getting pool info with pool keys...");
               const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
@@ -448,18 +489,7 @@ async function startSniper() {
               console.log("Getting token ouput info...");
               const tokenOutMint = new PublicKey(newTokenMint);
               const mintInfo = await connection.getParsedAccountInfo(tokenOutMint);
-              const tokenOutDecimals = mintInfo.value.data.parsed.info.decimals;
-              const tokenOut = new Token(TOKEN_PROGRAM_ID, tokenOutMint, tokenOutDecimals);
-              
-              // Compute amountOut and minAmountOut
-              const slippage = new Percent(1, 100); // 1% slippage
-              const { amountOut, minAmountOut } = Liquidity.computeAmountOut({
-                poolKeys,
-                poolInfo,
-                amountIn,
-                currencyOut: tokenOut,
-                slippage,
-              });
+            
     
               // Create priority fee instruction
               console.log("Computing priority fee")
@@ -484,14 +514,6 @@ async function startSniper() {
               const postInstructions = [
                 createCloseAccountInstruction(wrappedSolAccount.publicKey, wallet.publicKey, wallet.publicKey),
               ];
-    
-              console.log("Retrieving or creating token account");
-              const newTokenAccount = await getOrCreateAssociatedTokenAccount(
-                connection,
-                wallet,
-                new PublicKey(newTokenMint),
-                wallet.publicKey
-              );
     
               console.log("Creating swap instruction");
               const userTokenAccounts = await getOwnerTokenAccounts();
