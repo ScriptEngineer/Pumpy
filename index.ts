@@ -4,13 +4,14 @@ import {
   Keypair,
   Connection,
   Transaction,
-  VersionedTransaction,
+  TransactionInstruction,
   TransactionMessage,
   PublicKey,
   LAMPORTS_PER_SOL,
   SystemProgram,
   MessageV0,
   Signer,
+  VersionedTransaction,
 } from '@solana/web3.js';
 
 import {
@@ -38,13 +39,15 @@ import {
 } from '@raydium-io/raydium-sdk';
 
 import JSONStream from 'JSONStream';
+import { searcherClient } from "./src/jito";
+import { getRandomTipAccount } from "./src/config";
 import express from 'express';
 import { json as bodyParserJson } from 'body-parser';
 import axios from 'axios';
 import bs58 from 'bs58';
 import dotenv from 'dotenv';
-dotenv.config(); // Load environment variables
 import BN from 'bn.js'; // BigNumber library for handling large integers
+dotenv.config(); // Load environment variables
 
 const PORT = process.env.PORT || 3000;
 const JITO_ENDPOINT = 'https://bundle-api.mainnet.jito.network'; // Updated to the correct Jito endpoint
@@ -296,23 +299,38 @@ async function calcAmountOut(
   };
 }
 
-async function sendBundleToJito(transactions: string[]): Promise<void> {
-  try {
-    const payload = {
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'sendBundle',
-      params: [transactions],
-    };
+async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
+	try {
+		const bundleId = await searcherClient.sendBundle(new JitoBundle(bundledTxns, bundledTxns.length));
+		console.log(`Bundle ${bundleId} sent.`);
 
-    const response = await axios.post(JITO_ENDPOINT, payload, {
-      headers: { 'Content-Type': 'application/json' },
-    });
+		///*
+		// Assuming onBundleResult returns a Promise<BundleResult>
+		const result = await new Promise((resolve, reject) => {
+			searcherClient.onBundleResult(
+				(result) => {
+					console.log("Received bundle result:", result);
+					resolve(result); // Resolve the promise with the result
+				},
+				(e: Error) => {
+					console.error("Error receiving bundle result:", e);
+					reject(e); // Reject the promise if there's an error
+				}
+			);
+		});
 
-    console.log('Bundle submitted to Jito: ', response.data);
-  } catch (error: any) {
-    console.error('Error submitting bundle to Jito: ', error.message);
-  }
+		console.log("Result:", result);
+		//*/
+	} catch (error) {
+		const err = error as any;
+		console.error("Error sending bundle:", err.message);
+
+		if (err?.message?.includes("Bundle Dropped, no connected leader up soon")) {
+			console.error("Error sending bundle: Bundle Dropped, no connected leader up soon.");
+		} else {
+			console.error("An unexpected error occurred:", err.message);
+		}
+	}
 }
 
 function addTipInstruction(transaction: Transaction): void {
@@ -458,7 +476,9 @@ async function startSniper(): Promise<void> {
             });
 
             if (!tokenBought && poolKeys) {
-              const transferAmount = 0.01; // Amount of SOL to spend
+
+              const transferAmount = 0.01; 
+              const tipAmt = 0.01 * LAMPORTS_PER_SOL;
               const swapInDirection = poolKeys.baseMint.equals(WSOL_MINT);
               const wrappedSolAccount = Keypair.generate();
               const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(
@@ -467,8 +487,7 @@ async function startSniper(): Promise<void> {
               const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
               const lamportsForWSOL = amountInLamports + rentExemptLamports;
               const priorityMicroLamports = 5000; // Priority fee
-              const decimals = 9; // SOL has 9 decimals
-
+              const bundledTxns: VersionedTransaction[] = [];
               const { amountIn, amountOut, minAmountOut } = await calcAmountOut(
                 poolKeys,
                 transferAmount,
@@ -544,11 +563,16 @@ async function startSniper(): Promise<void> {
                 Boolean
               );
 
+              console.log("Creating tip for Jito");
+              const tipIxn = SystemProgram.transfer({
+                fromPubkey: wallet.publicKey,
+                toPubkey: getRandomTipAccount(),
+                lamports: BigInt(tipAmt),
+            });
+
               console.log('Combining instructions');
-              const allInstructions = [...preInstructions, ...instructions, ...postInstructions];
-
+              const allInstructions: TransactionInstruction[] = [...preInstructions, ...instructions, ...postInstructions];
               const { blockhash } = await connection.getLatestBlockhash('confirmed');
-
               const messageV0 = new TransactionMessage({
                 payerKey: wallet.publicKey,
                 recentBlockhash: blockhash,
@@ -559,11 +583,12 @@ async function startSniper(): Promise<void> {
               const signers: Signer[] = [wallet, wrappedSolAccount];
               transaction.sign(signers);
 
+              bundledTxns.push(transaction);
               const serializedTransaction = transaction.serialize();
               const base64EncodedTransaction = serializedTransaction.toString();
 
               console.log('Sending transaction to Jito');
-              await sendBundleToJito([base64EncodedTransaction]);
+              await sendBundleToJito(bundledTxns);
 
               // Set tokenBought to true after purchasing to prevent repeated buys
               tokenBought = true;
