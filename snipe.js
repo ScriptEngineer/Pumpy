@@ -47,7 +47,7 @@ require('dotenv').config(); // Load environment variables
 const BN = require('bn.js'); // BigNumber library for handling large integers
 
 const PORT = process.env.PORT || 3000;
-const JITO_ENDPOINT = process.env.JITO_ENDPOINT || 'https://api.jito.wtf/';
+const JITO_ENDPOINT = "ntp.dallas.jito.wtf";
 const RPC_URL = process.env.RPC_URL;
 const PRIVATE_KEY = process.env.PRIVATE_KEY; // Base58 encoded
 const WSOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
