@@ -5,9 +5,8 @@
   "main": "pump_fun.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node pump_fun.mjs",
-    "snipe": "node snipe.js",
-    "tester": "node test.js"
+    "start": "ts-node ./src/index.ts",
+    "snipe": "node snipe.js"
   },
   "author": "",
   "license": "ISC",
