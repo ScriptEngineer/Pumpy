@@ -540,7 +540,7 @@ async function startSniper() {
               
               // Extract the instructions from the swap transaction
               const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean);
-                  
+                              
               console.log("Combining instructions");
               const transaction = new Transaction();
               transaction.add(...preInstructions, ...instructions, ...postInstructions);         
@@ -548,10 +548,11 @@ async function startSniper() {
   
               const { blockhash } = await connection.getLatestBlockhash('confirmed');
               transaction.recentBlockhash = blockhash;
-              transaction.sign(wallet);
+              transaction.sign(wallet, wrappedSolAccount);
     
               const serializedTransaction = transaction.serialize();
               const base64EncodedTransaction = serializedTransaction.toString('base64');
+
 
               console.log("Sending transaction to Jito");
               await sendBundleToJito([base64EncodedTransaction]);
