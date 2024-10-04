@@ -476,7 +476,18 @@ async function startSniper(): Promise<void> {
           const marketState = MARKET_STATE_LAYOUT_V3.decode(marketAccount!.data);
 
           if (poolData && marketState) {
+
             console.log('Getting market authority...');
+
+            const marketAuthority1 = PublicKey.createProgramAddressSync(
+              [
+                marketState.ownAddress.toBuffer(),
+                marketState.vaultSignerNonce.toArrayLike(Buffer, 'le', 8),
+              ],
+              marketProgramId 
+            );
+          
+            /*
             const marketAuthority1 = PublicKey.createProgramAddressSync(
               [
                 marketState.ownAddress.toBuffer(),
@@ -484,6 +495,7 @@ async function startSniper(): Promise<void> {
               ],
               MAINNET_PROGRAM_ID.OPENBOOK_MARKET
             );
+            */
 
             console.log('Getting associated authority...');
 
@@ -510,7 +522,10 @@ async function startSniper(): Promise<void> {
               withdrawQueue: poolData.withdrawQueue,
               lpVault: poolData.lpVault,
               marketVersion: 3,
+              /*
               marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
+              */
+              marketProgramId: marketProgramId,
               marketId: poolData.marketId,
               marketAuthority: marketAuthority1,
               marketBaseVault: marketState.baseVault,
@@ -539,7 +554,10 @@ async function startSniper(): Promise<void> {
               withdrawQueue: poolData.withdrawQueue.toBase58(),
               lpVault: poolData.lpVault.toBase58(),
               marketVersion: 4,
+              /*
               marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET.toBase58(),
+              */
+              marketProgramId: marketProgramId.toBase58,
               marketId: poolData.marketId.toBase58(),
               marketAuthority: marketAuthority1.toBase58(),
               marketBaseVault: marketState.baseVault.toBase58(),
