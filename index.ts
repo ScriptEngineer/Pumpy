@@ -585,7 +585,7 @@ async function startSniper(): Promise<void> {
 
               const transferAmount = 0.01; 
               const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
-              const priorityMicroLamports = 5000; 
+              const priorityMicroLamports = 10000000; 
               const directionIn = poolKeys.quoteMint.toString() == newTokenMint
 
               console.log("Calculating amount out...");
@@ -694,7 +694,6 @@ async function startSniper(): Promise<void> {
                 skipPreflight: false,
               });
               console.log('Transaction sent with txid:', txid);
-              tokenBought = true;
 
               const confirmationResult = await connection.confirmTransaction(
                 {
@@ -704,6 +703,8 @@ async function startSniper(): Promise<void> {
                 },
                 'confirmed' 
               );
+
+              tokenBought = true;
 
               if (confirmationResult.value.err) {
                 console.error('Transaction failed:', confirmationResult.value.err);
