@@ -655,8 +655,23 @@ async function startSniper(): Promise<void> {
               const transaction = new VersionedTransaction(messageV0);
               transaction.sign([wallet]);
 
-              const txid = await connection.sendTransaction(transaction, { skipPreflight: true });
+              const simulationResult = await connection.simulateTransaction(transaction, { sigVerify: true });
+
+              if (simulationResult.value.err) {
+                console.error('Simulation failed with error:', simulationResult.value.err);
+                console.log('Simulation logs:', simulationResult.value.logs);
+                return; // Exit early since the transaction would fail
+              } else {
+                console.log('Simulation succeeded.');
+              }
+                         
+              /*
+              const txid = await connection.sendTransaction(transaction, { 
+                skipPreflight: false 
+              });
+              
               console.log('Transaction sent with txid:', txid);
+              */
 
               // Set tokenBought to true after purchasing to prevent repeated buys
               tokenBought = true;
