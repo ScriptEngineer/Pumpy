@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs, { read } from 'fs';
 import {
   ComputeBudgetProgram,
   Keypair,
@@ -419,6 +419,7 @@ function addTipInstruction(transaction: Transaction): void {
 
 async function startSniper(): Promise<void> {
   try {
+    let readyForNext = true;
     console.log('');
     const app = express();
     app.use(bodyParserJson());
@@ -434,10 +435,12 @@ async function startSniper(): Promise<void> {
 
     app.post('/ray', async (req: express.Request, res: express.Response) => {
       try {
-        console.log('Webhook received');
+        
         const data = req.body[0];
 
-        if (data.source === 'RAYDIUM') {
+        if (data.source === 'RAYDIUM' && readyForNext) {
+
+          readyForNext = false;
           console.log('RAYDIUM LIQUIDITY POOL CREATED');
 
           const tokenTransfers = data.tokenTransfers;
@@ -455,6 +458,7 @@ async function startSniper(): Promise<void> {
           )?.account;
 
           if (!poolID) {
+            readyForNext = true;
             console.error('poolID is undefined.');
             res.status(500).send('Error');
             return;
@@ -660,9 +664,11 @@ async function startSniper(): Promise<void> {
               if (simulationResult.value.err) {
                 console.error('Simulation failed with error:', simulationResult.value.err);
                 console.log('Simulation logs:', simulationResult.value.logs);
+                readyForNext = true;
                 return; // Exit early since the transaction would fail
               } else {
                 console.log('Simulation succeeded.');
+                readyForNext = true;
               }
                          
               /*
@@ -671,18 +677,25 @@ async function startSniper(): Promise<void> {
               });
               
               console.log('Transaction sent with txid:', txid);
-              */
-
+              
               // Set tokenBought to true after purchasing to prevent repeated buys
               tokenBought = true;
+              */
+
+            } else {
+              readyForNext = true;
             }
+
           } else {
+            readyForNext = true;
             console.error('poolAccountInfo is undefined.');
           }
+
         }
 
         res.status(200).send('Received');
       } catch (error: any) {
+        readyForNext = true;
         console.error('Error processing /ray webhook:', error.message);
         res.status(500).send('Error');
       }
