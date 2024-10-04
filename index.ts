@@ -587,12 +587,14 @@ async function startSniper(): Promise<void> {
               const transferAmount = 0.01; 
               const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
               const priorityMicroLamports = 5000; 
-              const swapInDirection = poolKeys.baseMint.equals(WSOL_MINT);
+              const directionIn = poolKeys.quoteMint.toString() == newTokenMint
+
+              console.log("Calculating amount out...");
               const { amountIn, amountOut, minAmountOut } = await calcAmountOut(
                 poolKeys,
                 transferAmount,
                 1,
-                swapInDirection
+                directionIn
               );
 
               console.log("Getting or creating the WSOL account...");
