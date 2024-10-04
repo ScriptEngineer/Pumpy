@@ -647,7 +647,7 @@ async function startSniper(): Promise<void> {
               ];
 
               const allInstructions: TransactionInstruction[] = [...preInstructions, ...instructions];
-              const { blockhash } = await connection.getLatestBlockhash('confirmed');
+              const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
 
               console.log('Compiling and sending transaction message...');
               const messageV0 = new TransactionMessage({
@@ -659,8 +659,11 @@ async function startSniper(): Promise<void> {
               const transaction = new VersionedTransaction(messageV0);
               transaction.sign([wallet]);
 
-              const simulationResult = await connection.simulateTransaction(transaction, { sigVerify: true });
-
+              const simulationResult = await connection.simulateTransaction(transaction, {
+                sigVerify: true,
+                replaceRecentBlockhash: false,
+              });
+              
               if (simulationResult.value.err) {
                 console.error('Simulation failed with error:', simulationResult.value.err);
                 console.log('Simulation logs:', simulationResult.value.logs);
@@ -672,6 +675,29 @@ async function startSniper(): Promise<void> {
               }
                          
               /*
+
+              const serializedTransaction = transaction.serialize();
+
+              const txid = await connection.sendRawTransaction(serializedTransaction, {
+                skipPreflight: false,
+              });
+              console.log('Transaction sent with txid:', txid);
+
+              const confirmationResult = await connection.confirmTransaction(
+                {
+                  signature: txid,
+                  blockhash: blockhash,
+                  lastValidBlockHeight: lastValidBlockHeight,
+                },
+                'confirmed' 
+              );
+
+              if (confirmationResult.value.err) {
+                console.error('Transaction failed:', confirmationResult.value.err);
+              } else {
+                console.log('Transaction confirmed.');
+              }
+
               const txid = await connection.sendTransaction(transaction, { 
                 skipPreflight: false 
               });
