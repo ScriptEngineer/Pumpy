@@ -592,7 +592,7 @@ async function startSniper(): Promise<void> {
               const { amountIn, amountOut, minAmountOut } = await calcAmountOut(
                 poolKeys,
                 transferAmount,
-                1,
+                10,
                 directionIn
               );
 
@@ -676,7 +676,7 @@ async function startSniper(): Promise<void> {
               console.log('Combining instructions');
               const preInstructions: TransactionInstruction[] = [];
               const allInstructions: TransactionInstruction[] = [...preInstructions, ...instructions];
-              const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
+              const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
               console.log('Compiling and sending transaction message...');
               const messageV0 = new TransactionMessage({
@@ -687,25 +687,7 @@ async function startSniper(): Promise<void> {
 
               const transaction = new VersionedTransaction(messageV0);
               transaction.sign([wallet]);
-
-              /*
-              const simulationResult = await connection.simulateTransaction(transaction, {
-                sigVerify: true,
-                replaceRecentBlockhash: false,
-              });
-              
-              if (simulationResult.value.err) {
-                console.error('Simulation failed with error:', simulationResult.value.err);
-                console.log('Simulation logs:', simulationResult.value.logs);
-                readyForNext = true;
-                return; // Exit early since the transaction would fail
-              } else {
-                console.log('Simulation succeeded.');
-                readyForNext = true;
-              }
-                */
-                        
-              
+        
               const serializedTransaction = transaction.serialize();
 
               const txid = await connection.sendRawTransaction(serializedTransaction, {
