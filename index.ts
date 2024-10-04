@@ -674,12 +674,7 @@ async function startSniper(): Promise<void> {
               const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean);
 
               console.log('Combining instructions');
-              const preInstructions: TransactionInstruction[] = [
-                ComputeBudgetProgram.setComputeUnitPrice({
-                  microLamports: priorityMicroLamports,
-                }),
-              ];
-
+              const preInstructions: TransactionInstruction[] = [];
               const allInstructions: TransactionInstruction[] = [...preInstructions, ...instructions];
               const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
 
