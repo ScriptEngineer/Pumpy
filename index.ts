@@ -506,8 +506,8 @@ async function startSniper(): Promise<void> {
             console.log('Building pool keys...');
             const poolKeys: LiquidityPoolKeys = {
               id: poolPubKey,
-              baseMint: new PublicKey('So11111111111111111111111111111111111111112'),
-              quoteMint: tokenKey,
+              baseMint: tokenKey,
+              quoteMint: new PublicKey('So11111111111111111111111111111111111111112'),
               lpMint: poolData.lpMint,
               baseDecimals: Number.parseInt(poolData.baseDecimal.toString()),
               quoteDecimals: Number.parseInt(poolData.quoteDecimal.toString()),
@@ -538,8 +538,8 @@ async function startSniper(): Promise<void> {
 
             console.log('Pool Keys RAW:', {
               id: poolID,
-              baseMint: 'So11111111111111111111111111111111111111112',
-              quoteMint: newTokenMint,
+              baseMint: newTokenMint,
+              quoteMint: 'So11111111111111111111111111111111111111112',
               lpMint: poolData.lpMint.toBase58(),
               baseDecimals: Number.parseInt(poolData.baseDecimal.toString()),
               quoteDecimals: Number.parseInt(poolData.quoteDecimal.toString()),
@@ -553,7 +553,7 @@ async function startSniper(): Promise<void> {
               quoteVault: poolData.quoteVault.toBase58(),
               withdrawQueue: poolData.withdrawQueue.toBase58(),
               lpVault: poolData.lpVault.toBase58(),
-              marketVersion: 4,
+              marketVersion: 3,
               /*
               marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET.toBase58(),
               */
