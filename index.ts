@@ -334,7 +334,7 @@ async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
 }
 
 async function sendVersionedTransaction(tx: VersionedTransaction) {
-  const txid = await this.connection.sendTransaction(tx, {
+  const txid = await connection.sendTransaction(tx, {
     skipPreflight: true,
   })
 
@@ -589,7 +589,7 @@ async function startSniper(): Promise<void> {
               tokenBought = true;
 
               const sendor = sendVersionedTransaction(transaction);
-              
+
               return sendor;
               
               /*          
