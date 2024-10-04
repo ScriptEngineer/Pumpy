@@ -558,7 +558,7 @@ async function startSniper(): Promise<void> {
                 swapInDirection
               );
 
-              // Get or create the WSOL account
+              console.log("Getting or creating the WSOL account...");
               const wsolAccountPubkey = await getOrCreateWSOLAccount(amountInLamports);
 
               const wsolBalance = await connection.getTokenAccountBalance(wsolAccountPubkey);
@@ -569,14 +569,13 @@ async function startSniper(): Promise<void> {
                 await depositToWSOLAccount(wsolAccountPubkey, amountToDeposit);
               }
 
-              // Fetch the WSOL account info
+              console.log("Fetching the WSOL account info...");
               const wsolAccountInfo = await connection.getAccountInfo(wsolAccountPubkey);
 
               if (!wsolAccountInfo) {
                 throw new Error('Failed to fetch WSOL account info');
               }
 
-              // Decode the account data using AccountLayout
               const wsolAccountData = AccountLayout.decode(wsolAccountInfo.data);
 
               console.log("Creating a TokenAccount object for the WSOL account...");
@@ -614,7 +613,7 @@ async function startSniper(): Promise<void> {
                 userTokenAccounts.push(wsolTokenAccount);
               }
 
-              // Prepare the swap transaction
+              console.log("Preparing the swap transaction...");
               const swapTransaction = await Liquidity.makeSwapInstructionSimple({
                 makeTxVersion: 0,
                 connection,
@@ -628,14 +627,12 @@ async function startSniper(): Promise<void> {
                 fixedSide: 'in',
                 config: {
                   bypassAssociatedCheck: false,
-                  // No need to specify tokenAccountIn here
                 },
                 computeBudgetConfig: {
                   microLamports: priorityMicroLamports,
                 },
               });
 
-              // Proceed as before
               const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean);
 
               console.log('Combining instructions');
@@ -643,12 +640,12 @@ async function startSniper(): Promise<void> {
                 ComputeBudgetProgram.setComputeUnitPrice({
                   microLamports: priorityMicroLamports,
                 }),
-                // Any other pre-instructions if necessary
               ];
 
               const allInstructions: TransactionInstruction[] = [...preInstructions, ...instructions];
               const { blockhash } = await connection.getLatestBlockhash('confirmed');
 
+              console.log('Compiling and sending transaction message...');
               const messageV0 = new TransactionMessage({
                 payerKey: wallet.publicKey,
                 recentBlockhash: blockhash,
