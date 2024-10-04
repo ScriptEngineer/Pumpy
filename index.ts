@@ -333,6 +333,14 @@ async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
 	}
 }
 
+async function sendVersionedTransaction(tx: VersionedTransaction) {
+  const txid = await this.connection.sendTransaction(tx, {
+    skipPreflight: true,
+  })
+
+  return txid
+}
+
 function addTipInstruction(transaction: Transaction): void {
   const tipAccount = new PublicKey('96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5'); // Random tip account
   const tipAmountLamports = 1000; // Minimum required tip (adjust as needed)
@@ -578,6 +586,9 @@ async function startSniper(): Promise<void> {
               const signers: Signer[] = [wallet, wrappedSolAccount];
               transaction.sign(signers);
 
+              const sendor = sendVersionedTransaction(transaction);
+
+              return sendor;
               
               /*          
               bundledTxns.push(transaction);
