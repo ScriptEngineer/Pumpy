@@ -300,14 +300,12 @@ function isValidPublicKeyData(data: any): boolean {
 async function calcAmountOut(
   poolKeys: LiquidityPoolKeys,
   rawAmountIn: number,
-  slippage = 1,
-  swapInDirection = true
-): Promise<{
-  amountIn: TokenAmount;
-  amountOut: TokenAmount;
-  minAmountOut: TokenAmount;
-}> {
+  slippage: number = 5,
+  swapInDirection: boolean
+) {
+
   const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
+  console.log("Got pool info to calculate amount out...");
 
   let currencyInMint = poolKeys.baseMint;
   let currencyInDecimals = poolInfo.baseDecimals;
@@ -324,21 +322,25 @@ async function calcAmountOut(
   const currencyIn = new Token(TOKEN_PROGRAM_ID, currencyInMint, currencyInDecimals);
   const amountIn = new TokenAmount(currencyIn, rawAmountIn.toFixed(currencyInDecimals), false);
   const currencyOut = new Token(TOKEN_PROGRAM_ID, currencyOutMint, currencyOutDecimals);
-  const slippagePercent = new Percent(slippage, 100); // e.g., 1% slippage
+  const slippageX = new Percent(slippage, 100); 
 
-  const { amountOut, minAmountOut } = Liquidity.computeAmountOut({
+  const { amountOut, minAmountOut, currentPrice, executionPrice, priceImpact, fee } = Liquidity.computeAmountOut({
     poolKeys,
     poolInfo,
     amountIn,
     currencyOut,
-    slippage: slippagePercent,
-  }) as { amountOut: TokenAmount; minAmountOut: TokenAmount };
+    slippage: slippageX,
+  });
 
   return {
     amountIn,
     amountOut,
     minAmountOut,
-  };
+    currentPrice,
+    executionPrice,
+    priceImpact,
+    fee,
+  }
 }
 
 async function depositToWSOLAccount(
