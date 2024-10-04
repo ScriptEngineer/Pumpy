@@ -481,13 +481,10 @@ async function startSniper(): Promise<void> {
 
             console.log('Getting market authority...');
 
-            const marketAuthority1 = PublicKey.createProgramAddressSync(
-              [
-                marketState.ownAddress.toBuffer(),
-                marketState.vaultSignerNonce.toArrayLike(Buffer, 'le', 8),
-              ],
-              marketProgramId 
-            );
+            const marketAuthority1 = Market.getAssociatedAuthority({
+              programId: marketProgramId,
+              marketId: marketState.ownAddress,
+            }).publicKey;
           
             /*
             const marketAuthority1 = PublicKey.createProgramAddressSync(
