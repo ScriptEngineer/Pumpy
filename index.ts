@@ -11,6 +11,7 @@ import {
   SystemProgram,
   MessageV0,
   Signer,
+  sendAndConfirmTransaction,
   VersionedTransaction,
 } from '@solana/web3.js';
 
@@ -98,6 +99,47 @@ async function getTokenMetadata(mintAddress: string): Promise<any> {
     return {}; // Return empty object on failure
   }
 }
+
+async function getOrCreateWSOLAccount(amountInLamports: number): Promise<PublicKey> {
+  const wsolAccounts = await connection.getTokenAccountsByOwner(wallet.publicKey, {
+    mint: WSOL_MINT,
+  });
+
+  if (wsolAccounts.value.length > 0) {
+    // Use the first existing WSOL account
+    return wsolAccounts.value[0].pubkey;
+  } else {
+    // Create and fund a new WSOL account in a separate transaction
+    const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
+    const lamportsForWSOL = amountInLamports + rentExemptLamports;
+    const wrappedSolAccount = Keypair.generate();
+
+    const createAccountInstruction = SystemProgram.createAccount({
+      fromPubkey: wallet.publicKey,
+      newAccountPubkey: wrappedSolAccount.publicKey,
+      lamports: lamportsForWSOL,
+      space: ACCOUNT_SIZE,
+      programId: TOKEN_PROGRAM_ID,
+    });
+
+    const initializeAccountInstruction = createInitializeAccountInstruction(
+      wrappedSolAccount.publicKey,
+      WSOL_MINT,
+      wallet.publicKey
+    );
+
+    const transaction = new Transaction().add(createAccountInstruction, initializeAccountInstruction);
+    transaction.feePayer = wallet.publicKey;
+    transaction.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
+
+    // Sign and send the transaction
+    await sendAndConfirmTransaction(connection, transaction, [wallet, wrappedSolAccount]);
+
+    // Return the public key of the new WSOL account
+    return wrappedSolAccount.publicKey;
+  }
+}
+
 
 async function getOwnerTokenAccounts(): Promise<TokenAccount[]> {
   const walletTokenAccounts = await connection.getTokenAccountsByOwner(wallet.publicKey, {
@@ -299,6 +341,27 @@ async function calcAmountOut(
   };
 }
 
+async function depositToWSOLAccount(
+  wsolAccountPubkey: PublicKey,
+  amountInLamports: number
+): Promise<void> {
+  const transaction = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: wsolAccountPubkey,
+      lamports: amountInLamports,
+    })
+  );
+
+  transaction.feePayer = wallet.publicKey;
+  transaction.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
+
+  await sendAndConfirmTransaction(connection, transaction, [wallet]);
+
+  console.log('Deposited SOL into WSOL account:', wsolAccountPubkey.toBase58());
+}
+
+
 async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
 	try {
     /*
@@ -484,18 +547,10 @@ async function startSniper(): Promise<void> {
             });
 
             if (!tokenBought && poolKeys) {
-
               const transferAmount = 0.01; 
-              const tipAmt = 0.01 * LAMPORTS_PER_SOL;
-              const swapInDirection = poolKeys.baseMint.equals(WSOL_MINT);
-              const wrappedSolAccount = Keypair.generate();
-              const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(
-                ACCOUNT_SIZE
-              );
               const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
-              const lamportsForWSOL = amountInLamports + rentExemptLamports;
-              const priorityMicroLamports = 5000; // Priority fee
-              const bundledTxns: VersionedTransaction[] = [];
+              const priorityMicroLamports = 5000; 
+              const swapInDirection = poolKeys.baseMint.equals(WSOL_MINT);
               const { amountIn, amountOut, minAmountOut } = await calcAmountOut(
                 poolKeys,
                 transferAmount,
@@ -503,52 +558,65 @@ async function startSniper(): Promise<void> {
                 swapInDirection
               );
 
-              console.log('Getting pool info with pool keys...');
-              const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
+              // Get or create the WSOL account
+              const wsolAccountPubkey = await getOrCreateWSOLAccount(amountInLamports);
 
-              console.log('Getting token output info...');
-              const tokenOutMint = new PublicKey(newTokenMint);
-              const mintInfo = await connection.getParsedAccountInfo(tokenOutMint);
+              const wsolBalance = await connection.getTokenAccountBalance(wsolAccountPubkey);
+              const currentBalanceLamports = parseInt(wsolBalance.value.amount);
 
-              // Create priority fee instruction
-              console.log('Computing priority fee');
-              const priorityFeeInstruction = ComputeBudgetProgram.setComputeUnitPrice({
-                microLamports: priorityMicroLamports,
-              });
+              if (currentBalanceLamports < amountInLamports) {
+                const amountToDeposit = amountInLamports - currentBalanceLamports;
+                await depositToWSOLAccount(wsolAccountPubkey, amountToDeposit);
+              }
 
-              console.log('Building Pre-Instructions');
-              const preInstructions = [
-                priorityFeeInstruction, // Add priority fee instruction first
-                SystemProgram.createAccount({
-                  fromPubkey: wallet.publicKey,
-                  newAccountPubkey: wrappedSolAccount.publicKey,
-                  lamports: lamportsForWSOL,
-                  space: ACCOUNT_SIZE,
-                  programId: TOKEN_PROGRAM_ID,
-                }),
-                createInitializeAccountInstruction(
-                  wrappedSolAccount.publicKey,
-                  WSOL_MINT,
-                  wallet.publicKey
-                ),
-              ];
+              // Fetch the WSOL account info
+              const wsolAccountInfo = await connection.getAccountInfo(wsolAccountPubkey);
 
-              console.log('Building Post-Instructions');
-              const postInstructions = [
-                createCloseAccountInstruction(
-                  wrappedSolAccount.publicKey,
-                  wallet.publicKey,
-                  wallet.publicKey
-                ),
-              ];
+              if (!wsolAccountInfo) {
+                throw new Error('Failed to fetch WSOL account info');
+              }
 
-              console.log('Creating swap instruction');
+              // Decode the account data using AccountLayout
+              const wsolAccountData = AccountLayout.decode(wsolAccountInfo.data);
+
+              console.log("Creating a TokenAccount object for the WSOL account...");
+              const wsolTokenAccount: TokenAccount = {
+                pubkey: wsolAccountPubkey,
+                programId: TOKEN_PROGRAM_ID,
+                accountInfo: {
+                  mint: WSOL_MINT,
+                  owner: wallet.publicKey,
+                  amount: new BN(wsolAccountData.amount, 10, 'le'),
+                  delegateOption: wsolAccountData.delegateOption,
+                  delegate: wsolAccountData.delegateOption ? wsolAccountData.delegate : null,
+                  state: wsolAccountData.state,
+                  isNativeOption: wsolAccountData.isNativeOption,
+                  isNative: wsolAccountData.isNativeOption
+                    ? new BN(wsolAccountData.isNative, 10, 'le')
+                    : null,
+                  delegatedAmount: new BN(wsolAccountData.delegatedAmount, 10, 'le'),
+                  closeAuthorityOption: wsolAccountData.closeAuthorityOption,
+                  closeAuthority: wsolAccountData.closeAuthorityOption
+                    ? wsolAccountData.closeAuthority
+                    : null,
+                },
+              };
+
+              // Fetch existing token accounts
               const userTokenAccounts = await getOwnerTokenAccounts();
 
+              // Include the WSOL token account if it's not already included
+              const wsolAccountExists = userTokenAccounts.some((account) =>
+                account.pubkey.equals(wsolAccountPubkey)
+              );
+
+              if (!wsolAccountExists) {
+                userTokenAccounts.push(wsolTokenAccount);
+              }
+
               // Prepare the swap transaction
-              console.log('Creating swap instruction');
               const swapTransaction = await Liquidity.makeSwapInstructionSimple({
-                makeTxVersion: 0, 
+                makeTxVersion: 0,
                 connection,
                 poolKeys,
                 userKeys: {
@@ -560,22 +628,27 @@ async function startSniper(): Promise<void> {
                 fixedSide: 'in',
                 config: {
                   bypassAssociatedCheck: false,
+                  // No need to specify tokenAccountIn here
                 },
                 computeBudgetConfig: {
                   microLamports: priorityMicroLamports,
                 },
               });
 
-              // Extract the instructions from the swap transaction
-              const instructions = swapTransaction.innerTransactions[0].instructions.filter(
-                Boolean
-              );
+              // Proceed as before
+              const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean);
 
-              console.log("Creating tip for Jito");
-    
               console.log('Combining instructions');
-              const allInstructions: TransactionInstruction[] = [...preInstructions, ...instructions, ...postInstructions];
+              const preInstructions: TransactionInstruction[] = [
+                ComputeBudgetProgram.setComputeUnitPrice({
+                  microLamports: priorityMicroLamports,
+                }),
+                // Any other pre-instructions if necessary
+              ];
+
+              const allInstructions: TransactionInstruction[] = [...preInstructions, ...instructions];
               const { blockhash } = await connection.getLatestBlockhash('confirmed');
+
               const messageV0 = new TransactionMessage({
                 payerKey: wallet.publicKey,
                 recentBlockhash: blockhash,
@@ -583,32 +656,13 @@ async function startSniper(): Promise<void> {
               }).compileToV0Message();
 
               const transaction = new VersionedTransaction(messageV0);
-              const signers: Signer[] = [wallet, wrappedSolAccount];
-              transaction.sign(signers);
+              transaction.sign([wallet]);
 
+              const txid = await connection.sendTransaction(transaction, { skipPreflight: true });
+              console.log('Transaction sent with txid:', txid);
+
+              // Set tokenBought to true after purchasing to prevent repeated buys
               tokenBought = true;
-
-              const sendor = sendVersionedTransaction(transaction);
-
-              return sendor;
-              
-              /*          
-              bundledTxns.push(transaction);
-              const serializedTransaction = transaction.serialize();
-              const base64EncodedTransaction = serializedTransaction.toString();
-
-              const tipIxn = SystemProgram.transfer({
-                fromPubkey: wallet.publicKey,
-                toPubkey: getRandomTipAccount(),
-                lamports: BigInt(tipAmt),
-              });
-
-              console.log('Sending transaction to Jito');
-              await sendBundleToJito(bundledTxns);
-              */
-
-              /* Set tokenBought to true after purchasing to prevent repeated buys */
-
             }
           } else {
             console.error('poolAccountInfo is undefined.');
