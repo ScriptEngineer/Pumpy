@@ -712,7 +712,7 @@ async function startSniper(): Promise<void> {
                 skipPreflight: false,
               });
               console.log('Transaction sent with txid:', txid);
-              
+              tokenBought = true;
 
               const confirmationResult = await connection.confirmTransaction(
                 {
@@ -729,15 +729,15 @@ async function startSniper(): Promise<void> {
                 console.log('Transaction confirmed.');
               }
 
+       
+
               /*
               const txid = await connection.sendTransaction(transaction, { 
                 skipPreflight: false 
               });
               
               console.log('Transaction sent with txid:', txid);
-              
-              // Set tokenBought to true after purchasing to prevent repeated buys
-              tokenBought = true;
+
               */
 
             } else {
