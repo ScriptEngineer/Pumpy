@@ -704,8 +704,6 @@ async function startSniper(): Promise<void> {
                 'confirmed' 
               );
 
-              tokenBought = true;
-
               if (confirmationResult.value.err) {
                 console.error('Transaction failed:', confirmationResult.value.err);
                 readyForNext = true;
