@@ -708,20 +708,13 @@ async function startSniper(): Promise<void> {
 
               if (confirmationResult.value.err) {
                 console.error('Transaction failed:', confirmationResult.value.err);
-              } else {
+                readyForNext = true;
+                tokenBought = false;
+              } else if (confirmationResult) {
                 console.log('Transaction confirmed.');
+                tokenBought = true;
+                readyForNext = true;
               }
-
-       
-
-              /*
-              const txid = await connection.sendTransaction(transaction, { 
-                skipPreflight: false 
-              });
-              
-              console.log('Transaction sent with txid:', txid);
-
-              */
 
             } else {
               readyForNext = true;
