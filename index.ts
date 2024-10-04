@@ -586,8 +586,10 @@ async function startSniper(): Promise<void> {
               const signers: Signer[] = [wallet, wrappedSolAccount];
               transaction.sign(signers);
 
-              const sendor = sendVersionedTransaction(transaction);
+              tokenBought = true;
 
+              const sendor = sendVersionedTransaction(transaction);
+              
               return sendor;
               
               /*          
@@ -606,7 +608,7 @@ async function startSniper(): Promise<void> {
               */
 
               /* Set tokenBought to true after purchasing to prevent repeated buys */
-              tokenBought = true;
+
             }
           } else {
             console.error('poolAccountInfo is undefined.');
