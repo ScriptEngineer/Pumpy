@@ -693,6 +693,7 @@ async function startSniper(): Promise<void> {
               const transaction = new VersionedTransaction(messageV0);
               transaction.sign([wallet]);
 
+              /*
               const simulationResult = await connection.simulateTransaction(transaction, {
                 sigVerify: true,
                 replaceRecentBlockhash: false,
@@ -707,15 +708,16 @@ async function startSniper(): Promise<void> {
                 console.log('Simulation succeeded.');
                 readyForNext = true;
               }
-                         
-              /*
-
+                */
+                        
+              
               const serializedTransaction = transaction.serialize();
 
               const txid = await connection.sendRawTransaction(serializedTransaction, {
                 skipPreflight: false,
               });
               console.log('Transaction sent with txid:', txid);
+              
 
               const confirmationResult = await connection.confirmTransaction(
                 {
@@ -732,6 +734,7 @@ async function startSniper(): Promise<void> {
                 console.log('Transaction confirmed.');
               }
 
+              /*
               const txid = await connection.sendTransaction(transaction, { 
                 skipPreflight: false 
               });
