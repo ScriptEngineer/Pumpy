@@ -551,6 +551,21 @@ async function startSniper(): Promise<void> {
             });
 
             if (!tokenBought && poolKeys) {
+
+              const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
+
+              console.log("Checking for low liquidity...");
+              console.log('Pool Reserves:', {
+                baseReserve: poolInfo.baseReserve.toString(),
+                quoteReserve: poolInfo.quoteReserve.toString(),
+              });
+
+              if (poolInfo.baseReserve.isZero() || poolInfo.quoteReserve.isZero()) {
+                console.error('Pool has insufficient liquidity for swapping.');
+                readyForNext = true;
+                return;
+              }
+
               const transferAmount = 0.01; 
               const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
               const priorityMicroLamports = 5000; 
