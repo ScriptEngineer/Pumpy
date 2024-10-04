@@ -557,7 +557,7 @@ async function startSniper(): Promise<void> {
               /*
               marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET.toBase58(),
               */
-              marketProgramId: marketProgramId.toBase58,
+              marketProgramId: marketProgramId.toBase58(),
               marketId: poolData.marketId.toBase58(),
               marketAuthority: marketAuthority1.toBase58(),
               marketBaseVault: marketState.baseVault.toBase58(),
