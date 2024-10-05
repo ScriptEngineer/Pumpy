@@ -140,7 +140,6 @@ async function getOrCreateWSOLAccount(amountInLamports: number): Promise<PublicK
   }
 }
 
-
 async function getOwnerTokenAccounts(): Promise<TokenAccount[]> {
   const walletTokenAccounts = await connection.getTokenAccountsByOwner(wallet.publicKey, {
     programId: TOKEN_PROGRAM_ID,
@@ -406,17 +405,92 @@ async function sendVersionedTransaction(tx: VersionedTransaction) {
   return txid
 }
 
-function addTipInstruction(transaction: Transaction): void {
-  const tipAccount = new PublicKey('96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5'); // Random tip account
-  const tipAmountLamports = 1000; // Minimum required tip (adjust as needed)
+async function swapToken({
+  poolKeys,
+  transferAmount,
+  slippage = 10,
+  directionIn, // true if buying token with SOL, false if selling token to SOL
+  userTokenAccounts,
+  wsolAccountPubkey,
+  priorityMicroLamports = 10000000,
+}) {
+  try {
+    // Convert transferAmount to lamports if buying with SOL, otherwise use transferAmount directly for token quantity
+    const amountIn = directionIn
+      ? transferAmount * LAMPORTS_PER_SOL // Convert SOL to lamports for buying
+      : transferAmount; // Use token amount as is for selling
 
-  const tipInstruction = SystemProgram.transfer({
-    fromPubkey: wallet.publicKey,
-    toPubkey: tipAccount,
-    lamports: tipAmountLamports,
-  });
+    console.log("Calculating amount out...");
+    const { amountOut, minAmountOut } = await calcAmountOut(
+      poolKeys,
+      transferAmount, // Use transferAmount to calculate amount out
+      slippage,
+      directionIn // determines if we are buying or selling
+    );
 
-  transaction.add(tipInstruction);
+    console.log("Preparing the swap transaction...");
+    const swapTransaction = await Liquidity.makeSwapInstructionSimple({
+      makeTxVersion: 0,
+      connection,
+      poolKeys,
+      userKeys: {
+        tokenAccounts: userTokenAccounts,
+        owner: wallet.publicKey,
+      },
+      amountIn: new TokenAmount(new Token(TOKEN_PROGRAM_ID, poolKeys.baseMint, poolKeys.baseDecimals), amountIn, false),
+      amountOut: minAmountOut,
+      fixedSide: 'in',
+      config: {
+        bypassAssociatedCheck: false,
+      },
+      computeBudgetConfig: {
+        microLamports: priorityMicroLamports,
+      },
+    });
+
+    const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean);
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+
+    console.log('Compiling and sending transaction message...');
+    const messageV0 = new TransactionMessage({
+      payerKey: wallet.publicKey,
+      recentBlockhash: blockhash,
+      instructions,
+    }).compileToV0Message();
+
+    const transaction = new VersionedTransaction(messageV0);
+    transaction.sign([wallet]);
+
+    const serializedTransaction = transaction.serialize();
+
+    const txid = await connection.sendRawTransaction(serializedTransaction, {
+      skipPreflight: false,
+    });
+    console.log('Transaction sent with txid:', txid);
+
+    const confirmationResult = await connection.confirmTransaction(
+      {
+        signature: txid,
+        blockhash: blockhash,
+        lastValidBlockHeight: lastValidBlockHeight,
+      },
+      'confirmed'
+    );
+
+    if (confirmationResult.value.err) {
+      console.error('Transaction failed:', confirmationResult.value.err);
+      return "FAILED";
+    } else if(confirmationResult) {
+      console.log('Transaction confirmed!');
+      return "SUCCESS";
+    } else {
+      return "FAILED";
+    }
+
+  } catch (error) {
+    console.error('Error executing swap:', error);
+    return "FAILED"
+  }
 }
 
 async function startSniper(): Promise<void> {
@@ -426,10 +500,13 @@ async function startSniper(): Promise<void> {
     const app = express();
     app.use(bodyParserJson());
 
+    
     const transferAmount = 0.01;
     const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
+    
     /* ~0.01 */
     const priorityMicroLamports = 10000000;
+
     console.log("Getting or creating the WSOL account...");
     const wsolAccountPubkey = await getOrCreateWSOLAccount(amountInLamports);
     const wsolBalance = await connection.getTokenAccountBalance(wsolAccountPubkey);
@@ -627,6 +704,23 @@ async function startSniper(): Promise<void> {
                 userTokenAccounts.push(wsolTokenAccount);
               }
 
+              let swap = await swapToken({
+                poolKeys,
+                transferAmount,
+                slippage: 10, // You can adjust the slippage tolerance
+                directionIn: true, // true indicates buying the token (swap SOL for token)
+                userTokenAccounts, // Fetch associated token accounts of the user
+                wsolAccountPubkey,
+              });
+
+              if (swap == "SUCCESS") {
+                tokenBought = true;
+              } else {
+                tokenBought = false;
+                readyForNext = true;
+              }
+
+              /*
               console.log("Preparing the swap transaction...");
               const swapTransaction = await Liquidity.makeSwapInstructionSimple({
                 makeTxVersion: 0,
@@ -689,6 +783,7 @@ async function startSniper(): Promise<void> {
                 tokenBought = true;
                 readyForNext = true;
               }
+              */
 
             } else {
               readyForNext = true;
