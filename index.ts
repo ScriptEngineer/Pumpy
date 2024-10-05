@@ -428,6 +428,7 @@ async function startSniper(): Promise<void> {
 
     const transferAmount = 0.01;
     const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
+    /* ~0.01 */
     const priorityMicroLamports = 10000000;
     console.log("Getting or creating the WSOL account...");
     const wsolAccountPubkey = await getOrCreateWSOLAccount(amountInLamports);
@@ -450,11 +451,6 @@ async function startSniper(): Promise<void> {
 
     app.listen(PORT, async () => {
       console.log(`Firing up on port ${PORT}...`);
-    });
-
-    app.post('/', async (req: express.Request, res: express.Response) => {
-      console.log('TESTER TESTING');
-      res.status(200).send('Received');
     });
 
     app.post('/ray', async (req: express.Request, res: express.Response) => {
