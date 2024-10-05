@@ -426,6 +426,28 @@ async function startSniper(): Promise<void> {
     const app = express();
     app.use(bodyParserJson());
 
+    const transferAmount = 0.01;
+    const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
+    const priorityMicroLamports = 10000000;
+    console.log("Getting or creating the WSOL account...");
+    const wsolAccountPubkey = await getOrCreateWSOLAccount(amountInLamports);
+    const wsolBalance = await connection.getTokenAccountBalance(wsolAccountPubkey);
+    const currentBalanceLamports = parseInt(wsolBalance.value.amount);
+
+    if (currentBalanceLamports < amountInLamports) {
+      const amountToDeposit = amountInLamports - currentBalanceLamports;
+      await depositToWSOLAccount(wsolAccountPubkey, amountToDeposit);
+    }
+
+    console.log("Fetching the WSOL account info...");
+    const wsolAccountInfo = await connection.getAccountInfo(wsolAccountPubkey);
+
+    if (!wsolAccountInfo) {
+      throw new Error('Failed to fetch WSOL account info');
+    }
+
+    const wsolAccountData = AccountLayout.decode(wsolAccountInfo.data);
+
     app.listen(PORT, async () => {
       console.log(`Firing up on port ${PORT}...`);
     });
@@ -583,38 +605,14 @@ async function startSniper(): Promise<void> {
                 return;
               }
 
-              const transferAmount = 0.01; 
-              const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
-              const priorityMicroLamports = 10000000; 
-              const directionIn = poolKeys.quoteMint.toString() == newTokenMint
-
               console.log("Calculating amount out...");
+              const directionIn = poolKeys.quoteMint.toString() == newTokenMint
               const { amountIn, amountOut, minAmountOut } = await calcAmountOut(
                 poolKeys,
                 transferAmount,
                 10,
                 directionIn
               );
-
-              console.log("Getting or creating the WSOL account...");
-              const wsolAccountPubkey = await getOrCreateWSOLAccount(amountInLamports);
-
-              const wsolBalance = await connection.getTokenAccountBalance(wsolAccountPubkey);
-              const currentBalanceLamports = parseInt(wsolBalance.value.amount);
-
-              if (currentBalanceLamports < amountInLamports) {
-                const amountToDeposit = amountInLamports - currentBalanceLamports;
-                await depositToWSOLAccount(wsolAccountPubkey, amountToDeposit);
-              }
-
-              console.log("Fetching the WSOL account info...");
-              const wsolAccountInfo = await connection.getAccountInfo(wsolAccountPubkey);
-
-              if (!wsolAccountInfo) {
-                throw new Error('Failed to fetch WSOL account info');
-              }
-
-              const wsolAccountData = AccountLayout.decode(wsolAccountInfo.data);
 
               console.log("Creating a TokenAccount object for the WSOL account...");
               const wsolTokenAccount: TokenAccount = {
