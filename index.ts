@@ -68,20 +68,6 @@ const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey('5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT
 const RAYDIUM_SWAP_PROGRAM = '5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS';
 let tokenBought = false;
 
-interface HeliusResponse {
-  jsonrpc: string;
-  result?: Array<{
-    price?: {
-      sol: number;
-    };
-  }>;
-  error?: {
-    code: number;
-    message: string;
-  };
-}
-
-
 async function getTokenMetadata(mintAddress: string): Promise<any> {
   const heliusUrl = `https://api.helius.xyz/v0/tokens/metadata?api-key=${process.env.HELIUS_API_KEY}`; // API URL with your Helius API key
 
@@ -248,7 +234,7 @@ async function mainMenu(): Promise<void> {
       },{
         name: 'Get Token Balances',
         value: 'view_balances',
-        description: 'Deposit into WSOL account',
+        description: 'See shitcoin balances in USDC',
       },{
         name: 'Exit',
         value: 'exit',
@@ -365,10 +351,6 @@ async function mainMenu(): Promise<void> {
   }
 }
 
-function isValidPublicKeyData(data: any): boolean {
-  return data instanceof PublicKey && data.toBase58() !== '11111111111111111111111111111111';
-}
-
 async function calcAmountOut(
   poolKeys: LiquidityPoolKeys,
   rawAmountIn: number,
@@ -435,7 +417,6 @@ async function depositToWSOLAccount(
   console.log('Deposited SOL into WSOL account:', wsolAccountPubkey.toBase58());
 }
 
-
 async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
 	try {
     /*
@@ -468,14 +449,6 @@ async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
 			console.error("An unexpected error occurred:", err.message);
 		}
 	}
-}
-
-async function sendVersionedTransaction(tx: VersionedTransaction) {
-  const txid = await connection.sendTransaction(tx, {
-    skipPreflight: true,
-  })
-
-  return txid
 }
 
 async function swapToken({
