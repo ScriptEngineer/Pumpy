@@ -501,7 +501,7 @@ async function startSniper(): Promise<void> {
     app.use(bodyParserJson());
 
     
-    const transferAmount = 0.01;
+    const transferAmount = 0.05;
     const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
     
     /* ~0.01 */
