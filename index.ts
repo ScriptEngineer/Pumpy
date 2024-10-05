@@ -68,6 +68,20 @@ const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey('5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT
 const RAYDIUM_SWAP_PROGRAM = '5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS';
 let tokenBought = false;
 
+interface HeliusResponse {
+  jsonrpc: string;
+  result?: Array<{
+    price?: {
+      sol: number;
+    };
+  }>;
+  error?: {
+    code: number;
+    message: string;
+  };
+}
+
+
 async function getTokenMetadata(mintAddress: string): Promise<any> {
   const heliusUrl = `https://api.helius.xyz/v0/tokens/metadata?api-key=${process.env.HELIUS_API_KEY}`; // API URL with your Helius API key
 
@@ -87,9 +101,8 @@ async function getTokenMetadata(mintAddress: string): Promise<any> {
 
     // Check if the response contains data
     if (response.data && response.data.length > 0) {
-      console.log('token data', response.data);
-      console.log('Onchain data', response.data[0].onChainData);
-      return response.data[0]; // Return the metadata for the token
+      return response.data[0]; 
+      // Return the metadata for the token
     } else {
       console.error('No metadata found for the given mint address.');
       return {};
@@ -152,6 +165,59 @@ async function getOwnerTokenAccounts(): Promise<TokenAccount[]> {
   })) as TokenAccount[];
 }
 
+async function getAssetsByOwner(): Promise<any[]> {
+  const heliusUrl = `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`;
+
+  try {
+    const response = await fetch(heliusUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'get-assets',
+        method: 'getAssetsByOwner',
+        params: {
+          ownerAddress: wallet.publicKey.toBase58(),
+          page: 1,
+          limit: 1000,
+          displayOptions: {
+            showFungible: true, // Fetch fungible tokens (like SPL tokens)
+            showNativeBalance: true, // Optionally show native SOL balance
+          },
+        },
+      }),
+    });
+
+    const data: { result?: { items: any[] } } = await response.json();
+    return data.result?.items || [];
+  } catch (error: any) {
+    console.error('Error fetching assets:', error.message);
+    return [];
+  }
+}
+
+async function getTokenBalances(): Promise<void> {
+  try {
+    // Fetch all assets owned by the wallet
+    const assets = await getAssetsByOwner();
+    const fungibleTokens = assets.filter(asset => asset.interface === 'FungibleToken');
+
+    fungibleTokens.forEach((tkn: any) => { 
+      if (tkn.token_info.price_info) {
+        console.log(`${tkn.token_info.symbol} Balance: ${tkn.token_info.price_info.total_price.toFixed(2)} USD`);
+      }
+    });
+
+    if (assets.length === 0) {
+      console.log("No assets found.");
+      return;
+    }
+    
+  } catch (error: any) {
+    console.error('Error fetching token balances:', error.message);
+  }
+}
+
 async function mainMenu(): Promise<void> {
   const { select, input, Separator } = await import('@inquirer/prompts');
 
@@ -163,23 +229,27 @@ async function mainMenu(): Promise<void> {
         name: 'Buy Token',
         value: 'buy_token',
         description: 'Buy a token from Raydium or Pump Fun',
-      },
-      {
+      },{
         name: 'Sell Token',
         value: 'sell_token',
         description: 'Sell a token from Raydium or Pump Fun',
-      },
-      {
+      },{
+        name: 'Deposit WSOL',
+        value: 'deposit_wsol',
+        description: 'Deposit into WSOL account',
+      },{
         name: 'Start Sniper',
         value: 'start_sniper',
         description: 'Start Pumping!',
-      },
-      {
+      },{
         name: 'Get Token Metadata',
         value: 'token_metadata',
         description: 'Get token information',
-      },
-      {
+      },{
+        name: 'Get Token Balances',
+        value: 'view_balances',
+        description: 'Deposit into WSOL account',
+      },{
         name: 'Exit',
         value: 'exit',
       },
@@ -286,6 +356,9 @@ async function mainMenu(): Promise<void> {
     console.log(metadata);
 
     await mainMenu(); // Re-run menu after metadata fetch
+  } else if (answer === 'view_balances') {
+    await getTokenBalances(); // Fetch and display token balances in SOL equivalent
+    await mainMenu(); // Re-run the menu after displaying balances
   } else if (answer === 'exit') {
     console.log('Exiting...');
     process.exit(0);
