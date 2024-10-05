@@ -498,24 +498,12 @@ async function startSniper(): Promise<void> {
           if (poolData && marketState) {
 
             console.log('Getting market authority...');
-
             const marketAuthority1 = Market.getAssociatedAuthority({
               programId: marketProgramId,
               marketId: marketState.ownAddress,
             }).publicKey;
           
-            /*
-            const marketAuthority1 = PublicKey.createProgramAddressSync(
-              [
-                marketState.ownAddress.toBuffer(),
-                marketState.vaultSignerNonce.toArrayLike(Buffer, 'le', 8),
-              ],
-              MAINNET_PROGRAM_ID.OPENBOOK_MARKET
-            );
-            */
-
             console.log('Getting associated authority...');
-
             const authority = Liquidity.getAssociatedAuthority({
               programId: new PublicKey(RAYDIUM_AMM_PROGRAM_ID),
             }).publicKey;
@@ -539,9 +527,6 @@ async function startSniper(): Promise<void> {
               withdrawQueue: poolData.withdrawQueue,
               lpVault: poolData.lpVault,
               marketVersion: 3,
-              /*
-              marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET,
-              */
               marketProgramId: marketProgramId,
               marketId: poolData.marketId,
               marketAuthority: marketAuthority1,
@@ -571,9 +556,6 @@ async function startSniper(): Promise<void> {
               withdrawQueue: poolData.withdrawQueue.toBase58(),
               lpVault: poolData.lpVault.toBase58(),
               marketVersion: 3,
-              /*
-              marketProgramId: MAINNET_PROGRAM_ID.OPENBOOK_MARKET.toBase58(),
-              */
               marketProgramId: marketProgramId.toBase58(),
               marketId: poolData.marketId.toBase58(),
               marketAuthority: marketAuthority1.toBase58(),
