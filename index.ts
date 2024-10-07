@@ -18,6 +18,7 @@ import {
 import {
   getOrCreateAssociatedTokenAccount,
   createInitializeAccountInstruction,
+  createSyncNativeInstruction, 
   createCloseAccountInstruction,
   TOKEN_PROGRAM_ID,
   ACCOUNT_SIZE,
@@ -105,10 +106,10 @@ async function getOrCreateWSOLAccount(amountInLamports: number): Promise<PublicK
   });
 
   if (wsolAccounts.value.length > 0) {
-    // Use the first existing WSOL account
+    console.log("Existing WSOL account found...");
     return wsolAccounts.value[0].pubkey;
   } else {
-    // Create and fund a new WSOL account in a separate transaction
+    console.log("Funding new WSOL account...");
     const rentExemptLamports = await connection.getMinimumBalanceForRentExemption(ACCOUNT_SIZE);
     const lamportsForWSOL = amountInLamports + rentExemptLamports;
     const wrappedSolAccount = Keypair.generate();
@@ -236,6 +237,10 @@ async function mainMenu(): Promise<void> {
         value: 'view_balances',
         description: 'See shitcoin balances in USDC',
       },{
+        name: 'Wrap SOL',
+        value: 'wrap_sol',
+        description: 'Convert SOL in Token Account into WSOL',
+      },{
         name: 'Exit',
         value: 'exit',
       },
@@ -285,6 +290,25 @@ async function mainMenu(): Promise<void> {
 
     // Initiate the swap (buy)
     await mainMenu(); // Re-run menu after buying
+
+  } else if (answer === 'deposit_wsol') {
+  
+    console.log("Getting or creating the WSOL account...");
+
+    const transferAmount = 0.1;
+    const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
+    const wsolAccountPubkey = await getOrCreateWSOLAccount(amountInLamports);
+
+    let depositAmount = await input({
+      message: 'Please enter the amount of Sol to convert into WSOL:',
+      validate(value: string) {
+        const valid = !isNaN(Number(value)) && parseFloat(value) > 0;
+        return valid || 'Please enter a valid number of tokens.';
+      },
+    });
+
+    await depositToWSOLAccount(wsolAccountPubkey, parseFloat(depositAmount));
+
   } else if (answer === 'sell_token') {
     // Ask the user for the token address
     const tokenMint = await input({
@@ -345,6 +369,12 @@ async function mainMenu(): Promise<void> {
   } else if (answer === 'view_balances') {
     await getTokenBalances(); // Fetch and display token balances in SOL equivalent
     await mainMenu(); // Re-run the menu after displaying balances
+  } else if (answer === 'wrap_sol') {
+    const transferAmount = 0.1;
+    const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
+    const wsolAccountPubkey = await getOrCreateWSOLAccount(amountInLamports);
+    await syncWSOLAccount(wsolAccountPubkey);
+    await mainMenu();
   } else if (answer === 'exit') {
     console.log('Exiting...');
     process.exit(0);
@@ -399,8 +429,10 @@ async function calcAmountOut(
 
 async function depositToWSOLAccount(
   wsolAccountPubkey: PublicKey,
-  amountInLamports: number
+  amountInSol: number // Amount in SOL
 ): Promise<void> {
+
+  const amountInLamports = amountInSol * LAMPORTS_PER_SOL;
   const transaction = new Transaction().add(
     SystemProgram.transfer({
       fromPubkey: wallet.publicKey,
@@ -413,8 +445,8 @@ async function depositToWSOLAccount(
   transaction.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
 
   await sendAndConfirmTransaction(connection, transaction, [wallet]);
-
   console.log('Deposited SOL into WSOL account:', wsolAccountPubkey.toBase58());
+
 }
 
 async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
@@ -449,6 +481,20 @@ async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
 			console.error("An unexpected error occurred:", err.message);
 		}
 	}
+}
+
+async function syncWSOLAccount(wsolAccountPubkey: PublicKey): Promise<void> {
+  
+  const transaction = new Transaction().add(
+    createSyncNativeInstruction(wsolAccountPubkey)
+  );
+
+  transaction.feePayer = wallet.publicKey;
+  transaction.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
+
+  await sendAndConfirmTransaction(connection, transaction, [wallet]);
+  console.log('Synced WSOL account to wrap native SOL into WSOL:', wsolAccountPubkey.toBase58());
+
 }
 
 async function swapToken({
