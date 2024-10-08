@@ -70,10 +70,40 @@ const RAYDIUM_SWAP_PROGRAM = '5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS';
 let tokenBought = false;
 
 async function getTokenMetadata(mintAddress: string): Promise<any> {
-  const heliusUrl = `https://api.helius.xyz/v0/tokens/metadata?api-key=${process.env.HELIUS_API_KEY}`; // API URL with your Helius API key
 
   try {
+    
+    const response = await fetch(`https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        "jsonrpc": "2.0",
+        "id": mintAddress,
+        "method": "getAsset",
+        "params": {
+          "id": mintAddress,
+          "displayOptions": {
+            "showCollectionMetadata": true,
+            "showFungible": true,
+            "showInscription": true,
+          }
+        }
+      }),
+    });
+
+    const data = await response.json();
+    console.log(data);
+    if (data && typeof data === 'object' && 'content' in data && (data as any).content && 'metadata' in (data as any).content) {
+      const content = data.content as { metadata: any };
+      console.log(content.metadata);
+    } else {
+      console.error('Unexpected data format:', data);
+    }
+
     // Prepare the request payload
+    /*
     const data = {
       mintAccounts: [mintAddress],
     };
@@ -94,6 +124,9 @@ async function getTokenMetadata(mintAddress: string): Promise<any> {
       console.error('No metadata found for the given mint address.');
       return {};
     }
+    */
+
+
   } catch (error: any) {
     console.error('Error fetching token metadata from Helius API:', error.message);
     return {}; // Return empty object on failure
@@ -266,6 +299,8 @@ async function mainMenu(): Promise<void> {
       mintAddress,
       wallet.publicKey
     );
+
+    console.log(tokenMetadata);
 
     // Retrieve and display token info
     if (tokenAccount && tokenMetadata && mintAddress) {
@@ -593,7 +628,7 @@ async function startSniper(): Promise<void> {
     app.use(bodyParserJson());
 
     
-    const transferAmount = 0.05;
+    const transferAmount = 0.1;
     const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
     
     /* ~0.01 */
@@ -614,6 +649,8 @@ async function startSniper(): Promise<void> {
 
     if (!wsolAccountInfo) {
       throw new Error('Failed to fetch WSOL account info');
+    } else {
+      console.log('Using WSOL Account:', wsolAccountPubkey.toBase58());
     }
 
     const wsolAccountData = AccountLayout.decode(wsolAccountInfo.data);
