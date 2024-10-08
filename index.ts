@@ -94,38 +94,7 @@ async function getTokenMetadata(mintAddress: string): Promise<any> {
     });
 
     const data = await response.json();
-    console.log(data);
-    if (data && typeof data === 'object' && 'content' in data && (data as any).content && 'metadata' in (data as any).content) {
-      const content = data.content as { metadata: any };
-      console.log(content.metadata);
-    } else {
-      console.error('Unexpected data format:', data);
-    }
-
-    // Prepare the request payload
-    /*
-    const data = {
-      mintAccounts: [mintAddress],
-    };
-
-    // Make the API call to Helius
-    const response = await axios.post(heliusUrl, data, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      timeout: 5000,
-    });
-
-    // Check if the response contains data
-    if (response.data && response.data.length > 0) {
-      return response.data[0]; 
-      // Return the metadata for the token
-    } else {
-      console.error('No metadata found for the given mint address.');
-      return {};
-    }
-    */
-
+    console.log(`Info for ${mintAddress}`, data);
 
   } catch (error: any) {
     console.error('Error fetching token metadata from Helius API:', error.message);
