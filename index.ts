@@ -796,7 +796,6 @@ async function startSniper(): Promise<void> {
               }
 
               console.log("Calculating amount out...");
-              const directionIn = poolKeys.quoteMint.toString() == newTokenMint
 
               console.log("Creating a TokenAccount object for the WSOL account...");
               const wsolTokenAccount: TokenAccount = {
@@ -833,11 +832,13 @@ async function startSniper(): Promise<void> {
                 userTokenAccounts.push(wsolTokenAccount);
               }
 
+              const directionIn = poolKeys.baseMint.toString() === newTokenMint;
+
               let swap = await swapToken({
                 poolKeys,
                 transferAmount,
                 slippage: 10, // You can adjust the slippage tolerance
-                directionIn: true, // true indicates buying the token (swap SOL for token)
+                directionIn: directionIn, // true indicates buying the token (swap SOL for token)
                 userTokenAccounts, // Fetch associated token accounts of the user
                 wsolAccountPubkey,
               });
