@@ -543,17 +543,20 @@ async function swapToken({
 }) {
   try {
     // Convert transferAmount to lamports if buying with SOL, otherwise use transferAmount directly for token quantity
-    const amountIn = directionIn
-      ? transferAmount * LAMPORTS_PER_SOL // Convert SOL to lamports for buying
-      : transferAmount; // Use token amount as is for selling
-
     console.log("Calculating amount out...");
-    const { amountOut, minAmountOut } = await calcAmountOut(
+    const { amountIn, amountOut, minAmountOut } = await calcAmountOut(
       poolKeys,
-      transferAmount, // Use transferAmount to calculate amount out
+      transferAmount,
       slippage,
-      directionIn // determines if we are buying or selling
+      directionIn
     );
+
+    console.log('Swap Details:');
+    console.log('Direction In:', directionIn ? 'Buying Token with WSOL' : 'Selling Token for WSOL');
+    console.log('Amount In:', amountIn.toExact());
+    console.log('Amount Out:', amountOut.toExact());
+    console.log('Min Amount Out:', minAmountOut.toExact());
+    console.log('Currency In Mint:', amountIn.token.mint.toBase58());
 
     console.log("Preparing the swap transaction...");
     const swapTransaction = await Liquidity.makeSwapInstructionSimple({
@@ -791,12 +794,6 @@ async function startSniper(): Promise<void> {
 
               console.log("Calculating amount out...");
               const directionIn = poolKeys.quoteMint.toString() == newTokenMint
-              const { amountIn, amountOut, minAmountOut } = await calcAmountOut(
-                poolKeys,
-                transferAmount,
-                10,
-                directionIn
-              );
 
               console.log("Creating a TokenAccount object for the WSOL account...");
               const wsolTokenAccount: TokenAccount = {
