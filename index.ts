@@ -94,7 +94,7 @@ async function getTokenMetadata(mintAddress: string): Promise<any> {
     });
 
     const data = await response.json();
-    console.log(`Info for ${mintAddress}`, data);
+    return data;
 
   } catch (error: any) {
     console.error('Error fetching token metadata from Helius API:', error.message);
@@ -743,8 +743,8 @@ async function startSniper(): Promise<void> {
 
             if (!tokenBought && poolKeys) {
 
-              const solInfo = await getTokenMetadata('So11111111111111111111111111111111111111112');
-              const tokenInfo = await getTokenMetadata(newTokenMint);
+              const solInfo: any = await getTokenMetadata('So11111111111111111111111111111111111111112');
+              const tokenInfo: any = await getTokenMetadata(newTokenMint);
               const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
               const baseDecimals = Number.parseInt(poolData.baseDecimal.toString());
               const quoteDecimals = Number.parseInt(poolData.quoteDecimal.toString());
