@@ -533,23 +533,19 @@ async function syncWSOLAccount(wsolAccountPubkey: PublicKey): Promise<void> {
 }
 
 async function swapToken({
+  newTokenMint,
   poolKeys,
   transferAmount,
   slippage = 10,
-  directionIn, // true if buying token with SOL, false if selling token to SOL
   userTokenAccounts,
-  wsolAccountPubkey,
   priorityMicroLamports = 10000000,
 }) {
   try {
     // Convert transferAmount to lamports if buying with SOL, otherwise use transferAmount directly for token quantity
     console.log("Calculating amount out...");
-    const { amountIn, amountOut, minAmountOut } = await calcAmountOut(
-      poolKeys,
-      transferAmount,
-      slippage,
-      directionIn
-    );
+
+    const directionIn = poolKeys.quoteMint.toString() == newTokenMint;
+    const { minAmountOut, amountIn, amountOut } = await calcAmountOut(poolKeys, transferAmount, slippage, directionIn)
 
     console.log('Swap Details:');
     console.log('Direction In:', directionIn ? 'Buying Token with WSOL' : 'Selling Token for WSOL');
@@ -567,9 +563,6 @@ async function swapToken({
         tokenAccounts: userTokenAccounts,
         owner: wallet.publicKey,
       },
-      /*
-      amountIn: new TokenAmount(new Token(TOKEN_PROGRAM_ID, poolKeys.baseMint, poolKeys.baseDecimals), amountIn, false),
-      */
       amountIn: amountIn,
       amountOut: minAmountOut,
       fixedSide: 'in',
@@ -832,15 +825,12 @@ async function startSniper(): Promise<void> {
                 userTokenAccounts.push(wsolTokenAccount);
               }
 
-              const directionIn = poolKeys.baseMint.toString() === newTokenMint;
-
               let swap = await swapToken({
+                newTokenMint,
                 poolKeys,
                 transferAmount,
-                slippage: 10, // You can adjust the slippage tolerance
-                directionIn: directionIn, // true indicates buying the token (swap SOL for token)
-                userTokenAccounts, // Fetch associated token accounts of the user
-                wsolAccountPubkey,
+                slippage: 10, 
+                userTokenAccounts, 
               });
 
               if (swap == "SUCCESS") {
@@ -849,71 +839,6 @@ async function startSniper(): Promise<void> {
                 tokenBought = false;
                 readyForNext = true;
               }
-
-              /*
-              console.log("Preparing the swap transaction...");
-              const swapTransaction = await Liquidity.makeSwapInstructionSimple({
-                makeTxVersion: 0,
-                connection,
-                poolKeys,
-                userKeys: {
-                  tokenAccounts: userTokenAccounts,
-                  owner: wallet.publicKey,
-                },
-                amountIn: amountIn,
-                amountOut: minAmountOut,
-                fixedSide: 'in',
-                config: {
-                  bypassAssociatedCheck: false,
-                },
-                computeBudgetConfig: {
-                  microLamports: priorityMicroLamports,
-                },
-              });
-
-              const instructions = swapTransaction.innerTransactions[0].instructions.filter(Boolean);
-
-              console.log('Combining instructions');
-              const preInstructions: TransactionInstruction[] = [];
-              const allInstructions: TransactionInstruction[] = [...preInstructions, ...instructions];
-              const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-
-              console.log('Compiling and sending transaction message...');
-              const messageV0 = new TransactionMessage({
-                payerKey: wallet.publicKey,
-                recentBlockhash: blockhash,
-                instructions: allInstructions,
-              }).compileToV0Message();
-
-              const transaction = new VersionedTransaction(messageV0);
-              transaction.sign([wallet]);
-        
-              const serializedTransaction = transaction.serialize();
-
-              const txid = await connection.sendRawTransaction(serializedTransaction, {
-                skipPreflight: false,
-              });
-              console.log('Transaction sent with txid:', txid);
-
-              const confirmationResult = await connection.confirmTransaction(
-                {
-                  signature: txid,
-                  blockhash: blockhash,
-                  lastValidBlockHeight: lastValidBlockHeight,
-                },
-                'confirmed' 
-              );
-
-              if (confirmationResult.value.err) {
-                console.error('Transaction failed:', confirmationResult.value.err);
-                readyForNext = true;
-                tokenBought = false;
-              } else if (confirmationResult) {
-                console.log('Transaction confirmed.');
-                tokenBought = true;
-                readyForNext = true;
-              }
-              */
 
             } else {
               readyForNext = true;
