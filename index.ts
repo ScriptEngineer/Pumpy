@@ -567,7 +567,10 @@ async function swapToken({
         tokenAccounts: userTokenAccounts,
         owner: wallet.publicKey,
       },
+      /*
       amountIn: new TokenAmount(new Token(TOKEN_PROGRAM_ID, poolKeys.baseMint, poolKeys.baseDecimals), amountIn, false),
+      */
+      amountIn: amountIn,
       amountOut: minAmountOut,
       fixedSide: 'in',
       config: {
