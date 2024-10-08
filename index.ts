@@ -749,11 +749,18 @@ async function startSniper(): Promise<void> {
               const baseDecimals = Number.parseInt(poolData.baseDecimal.toString());
               const quoteDecimals = Number.parseInt(poolData.quoteDecimal.toString());
 
-              console.log("Sol Info:", solInfo);
-              console.log("Checking new token metadata...");
-              console.log(tokenInfo);
 
-              console.log("Checking for low liquidity...");
+              console.log("\nSol Price Info:", solInfo);
+              console.log(solInfo.result.token_info.price_info);
+              console.log("\n\n")
+
+              console.log(`New token (${newTokenMint}) Info`);
+              console.log(`Creators: ${tokenInfo.result.creators}`);
+              console.log(`Token is mutable: ${tokenInfo.result.mutable}`);
+              console.log(`Token is frozen: ${tokenInfo.result.ownership.frozen}`);
+              console.log(`Token owner: ${tokenInfo.result.ownership.owner}`);
+
+              console.log("\nChecking for low liquidity...");
               console.log('Pool Reserves:', {
                 baseReserve: Number.parseInt(poolInfo.baseReserve.toString()),
                 quoteReserve: Number.parseInt(poolInfo.quoteReserve.toString()),
