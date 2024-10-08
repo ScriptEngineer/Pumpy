@@ -750,8 +750,8 @@ async function startSniper(): Promise<void> {
               const quoteDecimals = Number.parseInt(poolData.quoteDecimal.toString());
 
 
-              console.log("\nSol Price Info:", solInfo);
-              console.log(solInfo.result.token_info.price_info);
+              console.log("\nSol Price per Token:");
+              console.log(solInfo.result.token_info.price_info.price_per_token.toFixed(2));
               console.log("\n\n")
 
               console.log(`New token (${newTokenMint}) Info`);
