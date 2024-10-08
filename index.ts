@@ -778,8 +778,8 @@ async function startSniper(): Promise<void> {
 
               console.log("Checking for low liquidity...");
               console.log('Pool Reserves:', {
-                baseReserve: poolInfo.baseReserve.toString(),
-                quoteReserve: poolInfo.quoteReserve.toString(),
+                baseReserve: poolInfo.baseReserve.toExact(),
+                quoteReserve: poolInfo.quoteReserve.toExact(),
               });
 
               if (poolInfo.baseReserve.isZero() || poolInfo.quoteReserve.isZero()) {
@@ -788,6 +788,7 @@ async function startSniper(): Promise<void> {
                 return;
               }
 
+              /*
               console.log("Calculating amount out...");
 
               console.log("Creating a TokenAccount object for the WSOL account...");
@@ -832,13 +833,16 @@ async function startSniper(): Promise<void> {
                 slippage: 10, 
                 userTokenAccounts, 
               });
-
+              
               if (swap == "SUCCESS") {
                 tokenBought = true;
               } else {
                 tokenBought = false;
                 readyForNext = true;
               }
+              */
+
+              readyForNext = true;
 
             } else {
               readyForNext = true;
