@@ -774,12 +774,20 @@ async function startSniper(): Promise<void> {
 
             if (!tokenBought && poolKeys) {
 
+              const solInfo = await getTokenMetadata('So11111111111111111111111111111111111111112');
+              const tokenInfo = await getTokenMetadata(newTokenMint);
               const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
+              const baseDecimals = Number.parseInt(poolData.baseDecimal.toString());
+              const quoteDecimals = Number.parseInt(poolData.quoteDecimal.toString());
+
+              console.log("Sol Info:", solInfo);
+              console.log("Checking new token metadata...");
+              console.log(tokenInfo);
 
               console.log("Checking for low liquidity...");
               console.log('Pool Reserves:', {
-                baseReserve: poolInfo.baseReserve.toExact(),
-                quoteReserve: poolInfo.quoteReserve.toExact(),
+                baseReserve: Number.parseInt(poolInfo.baseReserve.toString()),
+                quoteReserve: Number.parseInt(poolInfo.quoteReserve.toString()),
               });
 
               if (poolInfo.baseReserve.isZero() || poolInfo.quoteReserve.isZero()) {
