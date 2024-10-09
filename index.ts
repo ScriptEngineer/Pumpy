@@ -756,8 +756,24 @@ async function startSniper(): Promise<void> {
               const baseDecimals = Number.parseInt(poolData.baseDecimal.toString());
               const quoteDecimals = Number.parseInt(poolData.quoteDecimal.toString());
 
+              /*
               const solPrice = solInfo.result.token_info.price_info.price_per_token.toFixed(2);
+              */
+
+              const solPrice = new BN(solInfo.result.token_info.price_info.price_per_token.toFixed(2));
+
+              const quoteReserveBN = poolInfo.quoteReserve; // BN
+
+              // Convert quote reserve to decimal representation
+              const quoteReserveDecimal = new BN(quoteReserveBN.toString()).dividedBy(
+                new BN(10).pow(poolKeys.quoteDecimals)
+              );
+
+              const liquidityUSD = quoteReserveDecimal.multipliedBy(solPrice);
+
+              /*
               const liquidityUSD = (quoteReserve / Math.pow(10, poolKeys.quoteDecimals)) * solPrice;
+              */
 
               console.log(`New token (${newTokenMint}) Info`);
               console.log(`Creators: ${tokenInfo.result.creators}`);
@@ -772,7 +788,7 @@ async function startSniper(): Promise<void> {
               /*
               console.log(`Token Price Per Token: ${tokenInfo.result.token_info.price_info.price_per_token}`);
               */
-             
+
               if (poolInfo.baseReserve.isZero() || poolInfo.quoteReserve.isZero()) {
                 console.error('Pool has insufficient liquidity for swapping.');
                 readyForNext = true;
