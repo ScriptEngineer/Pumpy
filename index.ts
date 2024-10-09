@@ -49,6 +49,8 @@ import axios from 'axios';
 import bs58 from 'bs58';
 import dotenv from 'dotenv';
 import BN from 'bn.js'; // BigNumber library for handling large integers
+import BigNumber from 'bignumber.js';
+
 dotenv.config(); // Load environment variables
 
 const PORT = process.env.PORT || 3000;
@@ -760,20 +762,25 @@ async function startSniper(): Promise<void> {
               const solPrice = solInfo.result.token_info.price_info.price_per_token.toFixed(2);
               */
 
-              const solPrice = new BN(solInfo.result.token_info.price_info.price_per_token.toFixed(2));
-
-              const quoteReserveBN = poolInfo.quoteReserve; // BN
-
-              // Convert quote reserve to decimal representation
-              const quoteReserveDecimal = new BN(quoteReserveBN.toString()).dividedBy(
-                new BN(10).pow(poolKeys.quoteDecimals)
-              );
-
-              const liquidityUSD = quoteReserveDecimal.multipliedBy(solPrice);
-
               /*
               const liquidityUSD = (quoteReserve / Math.pow(10, poolKeys.quoteDecimals)) * solPrice;
               */
+
+              // Fetch the current SOL price as a BigNumber
+              const solPrice = new BigNumber(solInfo.result.token_info.price_info.price_per_token);
+
+              // Get the quote reserve as a BN instance
+              const quoteReserveBN = poolInfo.quoteReserve; // BN
+
+              // Convert quote reserve to decimal representation using BigNumber
+              const quoteReserveDecimal = new BigNumber(quoteReserveBN.toString()).dividedBy(
+                new BigNumber(10).pow(poolKeys.quoteDecimals)
+              );
+
+              // Calculate liquidity in USD
+              const liquidityUSD = quoteReserveDecimal.multipliedBy(solPrice);
+
+              console.log(`Token Liquidity: $${liquidityUSD.toFixed(2)} USD`);
 
               console.log(`New token (${newTokenMint}) Info`);
               console.log(`Creators: ${tokenInfo.result.creators}`);
