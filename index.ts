@@ -758,14 +758,6 @@ async function startSniper(): Promise<void> {
               const baseDecimals = Number.parseInt(poolData.baseDecimal.toString());
               const quoteDecimals = Number.parseInt(poolData.quoteDecimal.toString());
 
-              /*
-              const solPrice = solInfo.result.token_info.price_info.price_per_token.toFixed(2);
-              */
-
-              /*
-              const liquidityUSD = (quoteReserve / Math.pow(10, poolKeys.quoteDecimals)) * solPrice;
-              */
-
               // Fetch the current SOL price as a BigNumber
               const solPrice = new BigNumber(solInfo.result.token_info.price_info.price_per_token);
 
@@ -779,8 +771,6 @@ async function startSniper(): Promise<void> {
 
               // Calculate liquidity in USD
               const liquidityUSD = quoteReserveDecimal.multipliedBy(solPrice);
-
-              console.log(`Token Liquidity: $${liquidityUSD.toFixed(2)} USD`);
 
               console.log(`New token (${newTokenMint}) Info`);
               console.log(`Creators: ${tokenInfo.result.creators}`);
