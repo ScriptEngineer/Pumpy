@@ -750,12 +750,14 @@ async function startSniper(): Promise<void> {
               const solInfo: any = await getTokenMetadata('So11111111111111111111111111111111111111112');
               const tokenInfo: any = await getTokenMetadata(newTokenMint);
               const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
+
+              const baseReserve = Number.parseInt(poolInfo.baseReserve.toString());
+              const quoteReserve = Number.parseInt(poolInfo.quoteReserve.toString());
               const baseDecimals = Number.parseInt(poolData.baseDecimal.toString());
               const quoteDecimals = Number.parseInt(poolData.quoteDecimal.toString());
 
-              console.log("\nSol Price per Token:");
-              console.log(solInfo.result.token_info.price_info.price_per_token.toFixed(2));
-              console.log("\n\n")
+              const solPrice = solInfo.result.token_info.price_info.price_per_token.toFixed(2);
+              const liquidityUSD = (quoteReserve / Math.pow(10, poolKeys.quoteDecimals)) * solPrice;
 
               console.log(`New token (${newTokenMint}) Info`);
               console.log(`Creators: ${tokenInfo.result.creators}`);
@@ -765,14 +767,12 @@ async function startSniper(): Promise<void> {
               console.log(`Token Symbol: ${tokenInfo.result.token_info.symbol}`);
               console.log(`Token Supply: ${tokenInfo.result.token_info.supply}`);
               console.log(`Token Decimals: ${tokenInfo.result.token_info.decimals}`);
+
+              console.log(`Token Liquidity : ${liquidityUSD.toFixed(2)} USD`);
+              /*
               console.log(`Token Price Per Token: ${tokenInfo.result.token_info.price_info.price_per_token}`);
-
-              console.log("\nChecking for low liquidity...");
-              console.log('Pool Reserves:', {
-                baseReserve: Number.parseInt(poolInfo.baseReserve.toString()),
-                quoteReserve: Number.parseInt(poolInfo.quoteReserve.toString()),
-              });
-
+              */
+             
               if (poolInfo.baseReserve.isZero() || poolInfo.quoteReserve.isZero()) {
                 console.error('Pool has insufficient liquidity for swapping.');
                 readyForNext = true;
