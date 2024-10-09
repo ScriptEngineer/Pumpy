@@ -596,12 +596,12 @@ async function swapToken({
 
 async function startSniper(): Promise<void> {
   try {
+
     let readyForNext = true;
     console.log('');
     const app = express();
     app.use(bodyParserJson());
-
-    
+ 
     const transferAmount = 0.1;
     const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
     
@@ -636,6 +636,7 @@ async function startSniper(): Promise<void> {
     app.post('/ray', async (req: express.Request, res: express.Response) => {
       try {
         
+        let badToken = false;
         const data = req.body[0];
 
         if (data.source === 'RAYDIUM' && readyForNext) {
@@ -664,8 +665,12 @@ async function startSniper(): Promise<void> {
             return;
           }
 
-          console.log('Pool ID:', poolID);
-          console.log('New Token Mint:', newTokenMint);
+          const tokenInfo: any = await getTokenMetadata(newTokenMint);
+
+          if (tokenInfo.result.ownership.frozen || tokenInfo.result.mutable) {
+            badToken = true;
+            console.log('Skipping bad token...');
+          }
 
           const tokenKey = new PublicKey(newTokenMint);
           const poolPubKey = new PublicKey(poolID);
@@ -674,8 +679,23 @@ async function startSniper(): Promise<void> {
           const marketAccount = await connection.getAccountInfo(poolData.marketId);
           const marketProgramId = marketAccount!.owner;
           const marketState = MARKET_STATE_LAYOUT_V3.decode(marketAccount!.data);
+          const authority = Liquidity.getAssociatedAuthority({
+            programId: new PublicKey(RAYDIUM_AMM_PROGRAM_ID),
+          }).publicKey;
 
-          if (poolData && marketState) {
+          console.log('Pool ID:', poolID);
+          console.log('New Token Mint:', newTokenMint);
+          console.log(`Creators: ${tokenInfo.result.creators}`);
+          /*
+          console.log(`Token is mutable: ${tokenInfo.result.mutable}`);
+          console.log(`Token is frozen: ${tokenInfo.result.ownership.frozen}`);
+          */
+          console.log(`Token owner: ${tokenInfo.result.ownership.owner}`);
+          console.log(`Token Symbol: ${tokenInfo.result.token_info.symbol}`);
+          console.log(`Token Supply: ${tokenInfo.result.token_info.supply}`);
+          console.log(`Token Decimals: ${tokenInfo.result.token_info.decimals}`);
+
+          if (poolData && marketState && !badToken) {
 
             console.log('Getting market authority...');
             const marketAuthority1 = Market.getAssociatedAuthority({
@@ -683,11 +703,6 @@ async function startSniper(): Promise<void> {
               marketId: marketState.ownAddress,
             }).publicKey;
           
-            console.log('Getting associated authority...');
-            const authority = Liquidity.getAssociatedAuthority({
-              programId: new PublicKey(RAYDIUM_AMM_PROGRAM_ID),
-            }).publicKey;
-
             console.log('Building pool keys...');
             const poolKeys: LiquidityPoolKeys = {
               id: poolPubKey,
@@ -750,36 +765,13 @@ async function startSniper(): Promise<void> {
             if (!tokenBought && poolKeys) {
 
               const solInfo: any = await getTokenMetadata('So11111111111111111111111111111111111111112');
-              const tokenInfo: any = await getTokenMetadata(newTokenMint);
               const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys });
-
-              const baseReserve = Number.parseInt(poolInfo.baseReserve.toString());
-              const quoteReserve = Number.parseInt(poolInfo.quoteReserve.toString());
-              const baseDecimals = Number.parseInt(poolData.baseDecimal.toString());
-              const quoteDecimals = Number.parseInt(poolData.quoteDecimal.toString());
-
-              // Fetch the current SOL price as a BigNumber
               const solPrice = new BigNumber(solInfo.result.token_info.price_info.price_per_token);
-
-              // Get the quote reserve as a BN instance
-              const quoteReserveBN = poolInfo.quoteReserve; // BN
-
-              // Convert quote reserve to decimal representation using BigNumber
+              const quoteReserveBN = poolInfo.quoteReserve; 
               const quoteReserveDecimal = new BigNumber(quoteReserveBN.toString()).dividedBy(
                 new BigNumber(10).pow(poolKeys.quoteDecimals)
               );
-
-              // Calculate liquidity in USD
               const liquidityUSD = quoteReserveDecimal.multipliedBy(solPrice);
-
-              console.log(`New token (${newTokenMint}) Info`);
-              console.log(`Creators: ${tokenInfo.result.creators}`);
-              console.log(`Token is mutable: ${tokenInfo.result.mutable}`);
-              console.log(`Token is frozen: ${tokenInfo.result.ownership.frozen}`);
-              console.log(`Token owner: ${tokenInfo.result.ownership.owner}`);
-              console.log(`Token Symbol: ${tokenInfo.result.token_info.symbol}`);
-              console.log(`Token Supply: ${tokenInfo.result.token_info.supply}`);
-              console.log(`Token Decimals: ${tokenInfo.result.token_info.decimals}`);
 
               console.log(`Token Liquidity : ${liquidityUSD.toFixed(2)} USD`);
               /*
@@ -854,7 +846,6 @@ async function startSniper(): Promise<void> {
 
           } else {
             readyForNext = true;
-            console.error('poolAccountInfo is undefined.');
           }
 
         }
