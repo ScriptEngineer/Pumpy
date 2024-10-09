@@ -669,7 +669,9 @@ async function startSniper(): Promise<void> {
 
           if (tokenInfo.result.ownership.frozen || tokenInfo.result.mutable) {
             badToken = true;
+            readyForNext = true;
             console.log('Skipping bad token...');
+            return;
           }
 
           const tokenKey = new PublicKey(newTokenMint);
