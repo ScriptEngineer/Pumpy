@@ -637,6 +637,7 @@ async function startSniper(): Promise<void> {
       try {
         
         let badToken = false;
+        let newToken = true;
         const data = req.body[0];
 
         if (data.source === 'RAYDIUM' && readyForNext) {
@@ -685,17 +686,9 @@ async function startSniper(): Promise<void> {
             programId: new PublicKey(RAYDIUM_AMM_PROGRAM_ID),
           }).publicKey;
 
-          console.log('Pool ID:', poolID);
-          console.log('New Token Mint:', newTokenMint);
-          console.log(`Creators: ${tokenInfo.result.creators}`);
-          /*
-          console.log(`Token is mutable: ${tokenInfo.result.mutable}`);
-          console.log(`Token is frozen: ${tokenInfo.result.ownership.frozen}`);
-          */
-          console.log(`Token owner: ${tokenInfo.result.ownership.owner}`);
-          console.log(`Token Symbol: ${tokenInfo.result.token_info.symbol}`);
-          console.log(`Token Supply: ${tokenInfo.result.token_info.supply}`);
-          console.log(`Token Decimals: ${tokenInfo.result.token_info.decimals}`);
+          if (tokenInfo.result.token_info.price_info) {
+            newToken = false;
+          }
 
           if (poolData && marketState && !badToken) {
 
@@ -774,8 +767,26 @@ async function startSniper(): Promise<void> {
                 new BigNumber(10).pow(poolKeys.quoteDecimals)
               );
               const liquidityUSD = quoteReserveDecimal.multipliedBy(solPrice);
-
-              console.log(`Token Liquidity : ${liquidityUSD.toFixed(2)} USD`);
+              const tokenData = `
+              -------------------------------
+              Token Symbol: ${tokenInfo.result.token_info.symbol}
+              Token Supply: ${tokenInfo.result.token_info.supply}
+              Token Decimals: ${tokenInfo.result.token_info.decimals}
+              Token Price Per Token: ${tokenInfo.result.token_info.price_info?.price_per_token || 'N/A'}
+              Token Owner: ${tokenInfo.result.ownership.owner}
+              Creators: ${tokenInfo.result.creators.join(', ')}
+              Pool ID: ${poolID}
+              Token Liquidity : ${liquidityUSD.toFixed(2)} USD
+              -------------------------------\n\n`;
+    
+              fs.writeFile('tokenInfo.txt', tokenData, { flag: 'a' }, (err) => {
+                if (err) {
+                  console.error('Error writing to file:', err);
+                }
+              });
+        
+    
+              console.log(tokenData);
               /*
               console.log(`Token Price Per Token: ${tokenInfo.result.token_info.price_info.price_per_token}`);
               */
