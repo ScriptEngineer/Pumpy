@@ -261,7 +261,7 @@ async function mainMenu(): Promise<void> {
     });
 
     const mintAddress = new PublicKey(tokenMint);
-    const tokenMetadata = await getTokenMetadata(tokenMint);
+    const metadata : any = await getTokenMetadata(tokenMint);
     const tokenAccount = await getOrCreateAssociatedTokenAccount(
       connection,
       wallet,
@@ -269,14 +269,13 @@ async function mainMenu(): Promise<void> {
       wallet.publicKey
     );
 
-    console.log(tokenMetadata);
-
     // Retrieve and display token info
-    if (tokenAccount && tokenMetadata && mintAddress) {
-      console.log(`Token Name: ${tokenMetadata.onChainData.data.name}`);
-      console.log(`Symbol: ${tokenMetadata.onChainData.data.symbol}`);
-      console.log(`Is Frozen: `, tokenAccount.isFrozen);
-      console.log(`Mint Address: ${mintAddress.toBase58()}`);
+    if (tokenAccount && metadata && mintAddress) {
+      console.log(metadata);
+      console.log(`\nToken Symbol: ${metadata.result.token_info.symbol}`);
+      console.log(`Token Supply: ${metadata.result.token_info.supply}`);
+      console.log(`Token Decimals: ${metadata.result.token_info.decimals}`);
+      console.log(`Token Price Per Token: ${metadata.result.token_info.price_info.price_per_token}`);
     } else {
       console.error('Could not fetch token data.');
       await mainMenu(); // Return to menu if no metadata found
@@ -366,8 +365,13 @@ async function mainMenu(): Promise<void> {
       },
     });
 
-    const metadata = await getTokenMetadata(tokenMint);
+    const metadata : any = await getTokenMetadata(tokenMint);
+
     console.log(metadata);
+    console.log(`\nToken Symbol: ${metadata.result.token_info.symbol}`);
+    console.log(`Token Supply: ${metadata.result.token_info.supply}`);
+    console.log(`Token Decimals: ${metadata.result.token_info.decimals}`);
+    console.log(`Token Price Per Token: ${metadata.result.token_info.price_info.price_per_token}`);
 
     await mainMenu(); // Re-run menu after metadata fetch
   } else if (answer === 'view_balances') {
@@ -749,7 +753,6 @@ async function startSniper(): Promise<void> {
               const baseDecimals = Number.parseInt(poolData.baseDecimal.toString());
               const quoteDecimals = Number.parseInt(poolData.quoteDecimal.toString());
 
-
               console.log("\nSol Price per Token:");
               console.log(solInfo.result.token_info.price_info.price_per_token.toFixed(2));
               console.log("\n\n")
@@ -759,6 +762,10 @@ async function startSniper(): Promise<void> {
               console.log(`Token is mutable: ${tokenInfo.result.mutable}`);
               console.log(`Token is frozen: ${tokenInfo.result.ownership.frozen}`);
               console.log(`Token owner: ${tokenInfo.result.ownership.owner}`);
+              console.log(`Token Symbol: ${tokenInfo.result.token_info.symbol}`);
+              console.log(`Token Supply: ${tokenInfo.result.token_info.supply}`);
+              console.log(`Token Decimals: ${tokenInfo.result.token_info.decimals}`);
+              console.log(`Token Price Per Token: ${tokenInfo.result.token_info.price_info.price_per_token}`);
 
               console.log("\nChecking for low liquidity...");
               console.log('Pool Reserves:', {
