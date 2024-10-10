@@ -17,6 +17,7 @@
     "@solana/spl-token": "latest",
     "@solana/web3.js": "^1.95.3",
     "axios": "latest",
+    "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "bs58": "^6.0.0",
     "convict": "^6.2.4",

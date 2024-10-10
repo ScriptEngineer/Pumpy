@@ -769,6 +769,7 @@ async function startSniper(): Promise<void> {
               const liquidityUSD = quoteReserveDecimal.multipliedBy(solPrice);
               const tokenData = `
               -------------------------------
+              Token Address: ${newTokenMint}
               Token Symbol: ${tokenInfo.result.token_info.symbol}
               Token Supply: ${tokenInfo.result.token_info.supply}
               Token Decimals: ${tokenInfo.result.token_info.decimals}
