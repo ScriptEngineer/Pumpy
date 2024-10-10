@@ -767,6 +767,7 @@ async function startSniper(): Promise<void> {
                 new BigNumber(10).pow(poolKeys.quoteDecimals)
               );
               const liquidityUSD = quoteReserveDecimal.multipliedBy(solPrice);
+              
               const tokenData = `
               -------------------------------
               Token Address: ${newTokenMint}
