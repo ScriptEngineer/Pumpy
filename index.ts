@@ -1,4 +1,5 @@
 import fs, { read } from 'fs';
+import { format } from 'date-fns-tz';
 import {
   ComputeBudgetProgram,
   Keypair,
@@ -53,6 +54,7 @@ import BigNumber from 'bignumber.js';
 
 dotenv.config(); // Load environment variables
 
+const texasTimezone = 'America/Chicago';
 const PORT = process.env.PORT || 3000;
 const JITO_ENDPOINT = 'https://bundle-api.mainnet.jito.network'; // Updated to the correct Jito endpoint
 const RPC_URL = process.env.RPC_URL;
@@ -767,6 +769,9 @@ async function startSniper(): Promise<void> {
                 new BigNumber(10).pow(poolKeys.quoteDecimals)
               );
               const liquidityUSD = quoteReserveDecimal.multipliedBy(solPrice);
+              const now = new Date();
+              const timestamp = format(now, 'yyyy-MM-dd HH:mm:ss zzzz', { timeZone: texasTimezone });
+
               
               const tokenData = `
               -------------------------------
@@ -779,7 +784,7 @@ async function startSniper(): Promise<void> {
               Creators: ${tokenInfo.result.creators.join(', ')}
               Pool ID: ${poolID}
               Token Liquidity : ${liquidityUSD.toFixed(2)} USD
-              Timestamp: ${new Date().toLocaleString()}
+              Timestamp: ${timestamp}
               -------------------------------\n\n`;
     
               fs.writeFile('tokenInfo.txt', tokenData, { flag: 'a' }, (err) => {
