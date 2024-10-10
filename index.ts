@@ -1,5 +1,5 @@
 import fs, { read } from 'fs';
-import { format } from 'date-fns-tz';
+import { formatInTimeZone } from 'date-fns-tz';
 import {
   ComputeBudgetProgram,
   Keypair,
@@ -770,9 +770,8 @@ async function startSniper(): Promise<void> {
               );
               const liquidityUSD = quoteReserveDecimal.multipliedBy(solPrice);
               const now = new Date();
-              const timestamp = format(now, 'yyyy-MM-dd HH:mm:ss zzzz', { timeZone: texasTimezone });
-
-              
+              const timestamp = formatInTimeZone(now, texasTimezone, 'yyyy-MM-dd HH:mm:ss zzzz');
+                      
               const tokenData = `
               -------------------------------
               Token Address: ${newTokenMint}
