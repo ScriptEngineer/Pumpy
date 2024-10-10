@@ -779,6 +779,7 @@ async function startSniper(): Promise<void> {
               Creators: ${tokenInfo.result.creators.join(', ')}
               Pool ID: ${poolID}
               Token Liquidity : ${liquidityUSD.toFixed(2)} USD
+              Timestamp: ${new Date().toLocaleString()}
               -------------------------------\n\n`;
     
               fs.writeFile('tokenInfo.txt', tokenData, { flag: 'a' }, (err) => {
