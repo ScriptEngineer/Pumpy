@@ -554,6 +554,64 @@ async function getWarchest() {
 
 }
 
+async function botSwap({
+  tokenAddress,
+  chain = 'solana',
+  type = "sell"
+}) {
+  try {
+  
+    // Define the request details
+    const apiUrl = 'https://api-bot-v1.dbotx.com/automation/swap_order';
+    const sniperData = {
+      chain: chain,
+      pair: tokenAddress,
+      walletId: "lztuv37x1q21uo",
+      type: type,
+      amountOrPercent: 0.05,
+      stopEarnPercent: 0.5,
+      stopLossPercent: 0.4,
+      stopEarnGroup: [
+        { 
+          pricePercent: 0.2, 
+          amountPercent: 0.5 
+        },{ 
+          pricePercent: 0.8, 
+          amountPercent: 1 
+        }
+      ], 
+      stopLossGroup: [ 
+        { 
+          pricePercent: 0.4, 
+          amountPercent: 1 
+        }
+      ],
+      priorityFee: "", 
+    	gasFeeDelta: 5, 
+      maxFeePerGas: 100, 
+      jitoEnabled: true, 
+      jitoTip: 0.001, 
+      maxSlippage: 0.1, 
+      concurrentNodes: 3, 
+      retries: 1
+    };
+
+    const response = await axios.post(apiUrl, sniperData, {
+      headers: {
+        'X-API-KEY': process.env.DBOT_API,
+        'Content-Type': 'application/json'
+      }
+    });
+
+
+    console.log('Swap successful:', response.data);
+    return response.data;
+
+  } catch (error: any) {
+    console.error('Error setting up sniper:', error.message);
+  }
+
+}
 
 async function setupSniper({
   tokenAddress,
@@ -913,9 +971,10 @@ async function startListener(): Promise<void> {
                 return;
               }
 
-              let sendIt = await setupSniper({
+              let sendIt = await botSwap({
                 tokenAddress: newTokenMint,
                 chain: 'solana',
+                type: "buy"
               });
 
               if(sendIt.err) {
