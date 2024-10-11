@@ -607,7 +607,10 @@ async function setupSniper({
         'Content-Type': 'application/json'
       }
     });
+
+
     console.log('Sniper created successfully:', response.data);
+    return response.data;
 
   } catch (error: any) {
     console.error('Error setting up sniper:', error.message);
@@ -908,6 +911,14 @@ async function startListener(): Promise<void> {
                 console.error('Pool has insufficient liquidity for swapping.');
                 readyForNext = true;
                 return;
+              }
+
+              let sendIt = await setupSniper(newTokenMint);
+
+              if(sendIt.err) {
+                tokenBought = true;
+              } else {
+                tokenBought = true;
               }
 
               /*
