@@ -60,6 +60,7 @@ if (!PRIVATE_KEY) {
 }
 
 const texasTimezone = 'America/Chicago';
+const walletsPath = './wallets.json';
 const PORT = process.env.PORT || 3000;
 const JITO_ENDPOINT = 'https://bundle-api.mainnet.jito.network'; // Updated to the correct Jito endpoint
 const RPC_URL = process.env.RPC_URL;
@@ -839,65 +840,60 @@ async function swapToken({
   }
 }
 
+async function syncWallets(): Promise<void> {
+  try {
+
+    const data = fs.readFileSync(walletsPath, 'utf8');
+    const wallets = JSON.parse(data).treasure.wallets;
+
+    wallets.forEach(async wally => {  
+      const wallet = wally.id;
+      const walletAssets = await getWalletAssets(wallet);
+    
+      if (walletAssets.result && walletAssets.result.items.length > 0) {
+        walletAssets.result.items.forEach(ass => {
+          wally.tokens.push(ass.id);
+        });
+      } else {
+        console.log("No assets found.");
+      }
+      
+    });
+
+    // Step 4: Convert the updated JavaScript object back to a JSON string
+    const updatedData = JSON.stringify(wallets, null, 2); // Use 2 spaces for pretty formatting
+
+    // Step 5: Write the updated JSON data back to the file
+    fs.writeFileSync(walletsPath, updatedData, 'utf8');
+
+    console.log('Wallets JSON file has been updated successfully.');
+
+  } catch (error) {
+      console.error('Error updating wallets.json:', error);
+  }
+
+}
+
 async function walletWatcher(): Promise<void> {
   try {
 
     const app = express();
     app.use(bodyParserJson());
-    let tokenBought = false;
-    let currentToken = '';
 
-    let oldTokens = [
-      "HykhFuKDmbkzJPD9ahWuJaBpLifHYWkm9vn6XqvW59Qf",
-      "HtfrXTuCMjYxGmXe5VXdLaGVHBw2wMtBVgX5M1egb595",
-      "GiPPHHd8uinJG3MLV1PNMdmUbsiKChqe6Z2QqNoytC1D",
-      "Gc5TW5i2irabzbqm8sjmNmtP3JfFdfDTALByETNaKpVB",
-      "G8tuf3D5enBMZT8dk7nmCzuZFRFH85rQD1R18A7BsjD9",
-      "G23fCQsZtPMZnURNPWs84dwQ3J1y8i34w4coYhLY1D5i",
-      "FsKbH8gpiv7YZkotC59oBkMJq294Uk7cX8zwcpKKwJzf",
-      "FZdnmcH2L9JfJyc7uf9qjgqK1GaEYRSwKVVN9hqU7qbq",
-      "FGCg7Ri2TGok1A2rC5cB8QdmzjTVC2oXiWnUP8aGZjqe",
-      "EtRUgr98CtZgPMWEHzRhVUQWKs7pDv5Dn8WKVnGvC61A",
-      "EjuR7yJgUWeG1De7vkMHiUcjTMo3iTug5UBdukKLrTw3",
-      "Ej2udfhfQmiaXPnMuWWYSqVWsmAajnydDLiBv6P6pyzK",
-      "ED1oKTGGjRPioH6G94GVLMaXJtSWxBdLb5kpkBGFUrZK",
-      "E7YdLCAYc6LMAya1iCw7Soj8pqu4tXpCzwgpmhiwf1az",
-      "DutD7NvZ9BgVGd6PD2Sqm9Ytvv8RxwefWAesZ1GQpp2z",
-      "DYsc5GFr6gL9VCHaCvs2gFGEafCSho67GfymkbBWJ9Z1",
-      "DUadWod3qQKShiHKH6Mj4YZhF3eT5UaH6sGkCiKtP2WG",
-      "DJ3iSddS1WLzMD96aEbVNFp5ZzwuB9V1p29dzxooixu3",
-      "CX9LoKhpYooC44rV4qsf7cjXe5vAU1V1Q5YWtbBmgSdY",
-      "BfSpbtFThxDfhto5yi3HMHhZZPg84sN4wfci6UcjwA93",
-      "BJ8KJB9UkoXguy8ddThF8VXsLpqJyWt9Guv2AQ1DiwYr",
-      "BCt9wuacJKf6RYRyftdWng1PG6xjHsZGnbskMhCpNrC6",
-      "AB3TNcV2rpHR2E16RdfFDCVv7VPuoJYTQJXaomGr6gnS",
-      "9W93dEshMHpvamvREvPjsAnqCrchFC3gW53DXMiyzmoS",
-      "8wT2mRtbEnUeLSwoCDDWmHfCYh6jCBtDx4LZcWcWPD7R",
-      "8rvG7X1RtXKQh9cmZtsPUfKSttWAbNUbNWCHMwpNHYZe",
-      "8KoKkJg1Kuo9VdmHP6ACeu4pu9YHgcD7e8RZfMenXhcb",
-      "8DLtTVG3Tr7Ax2KPQfhRjx9zcG3EES9esmzi4xnjDtJr",
-      "7nuvM7U9vSAp1btQeje6U6ivtdECy53kJBgEeRnPk9wz",
-      "7kXwAbDJ1JBS8GtXrujA1a3i9puJYEqS3ypzr8kwLVKq",
-      "7NeLFxLEwEeHK4vrXZDFCCBoVrUVrMHh6Ct6wxTgKGqg",
-      "6ADz112JVRxKmmcEjBaKgPJUYXsTSmV4VxU9mAovhtN4",
-      "5yn1goz4HnbHa1no9X3r8pn8zLD4j3xqo2oNy3B2fw3X",
-      "599j9XxAX4sevt4QguuRSB87JN7naPzbRHB4gGCAMdZB",
-      "4fCFiQgyHzTYx1ydvDG2shnsgXonXEcT7jAwHtW4TeJ7",
-      "4CuWS95kS6oSHQQJfUxfG38BQy9kHB6k7UbHxSZYkGsV",
-      "43wHLDaZ63zN63mmgHzvqpK33ki42nWGicrx3nc3dM6L",
-      "2EnMJuVX1hssFKrwpQkduQyZxJggdYuFBBqYGDrMAMEa",
-      "2CLmaLbgajxxVERUZhc8N7oekj7Lz637bfv2Q6GhzJwB",
-      "2A1V2Go6ZFyzxtBcLq2YdBTXv3xS3WhRB9fk7rt88LpJ",
-      "22vmJQXnSkKPCk5eWrM7sPaz8dU2hqGmMSezRvwr9CjD",
-      "WtWZ27UVyZVTxTjEbfwG3kqf5x2HGQxjLx53AzpFeom",
-      "JhzSxprTM1n1xEtc6PrW39Ms2BisQDdUeTV4aMixUFR",
-      "9Qd75mB45Siay91G52wXbP6EN2Ue8PCTK8W6U1TJPoP",
-      "8wctyexXZ5n5rg3p6zWGoBs4bV9ZnDhk6oRH4GmfLcC",
-      "13vvzDZdyNLDh888FBS12vkqJLvnJ4gVBbyJDai6aVDe",
-      "12en3SZ9eqdLWc963U5XyeX941N1AsK3VVtCSJ1CrZfd"
-    ];
+    const data = fs.readFileSync(walletsPath, 'utf8');
 
-    const searchSet = new Set(oldTokens);
+    // Parse the JSON data
+    const wallets = JSON.parse(data).treasure.wallets;
+
+    wallets.forEach(wally => {
+      console.log(wally.id);
+
+      wally.tokens.forEach(token => { 
+        console.log(token);
+      });
+
+    });
+
 
     app.listen(PORT, async () => {
       console.log(`Listening for wallet activity...`);
@@ -909,6 +905,9 @@ async function walletWatcher(): Promise<void> {
         console.log('WALLET ACTIVITY NOTICED!!!');
         const data = req.body[0];
         console.log(data);
+
+        const matchedWally = wallets.find(wally => wally.id === "2NuTVvXdrDLDY1jkYVQZvPLxgquRx8BcFLivd6QZK9nn");
+        const searchSet = new Set(matchedWally.tokens);
 
         let checkWally = await getWalletAssets("2NuTVvXdrDLDY1jkYVQZvPLxgquRx8BcFLivd6QZK9nn");
 
