@@ -541,11 +541,37 @@ async function setupSniper({
       chain: chain,
       token: tokenAddress,
       walletId: process.env.DBOT_WALLET,
-      expireDelta: 86400000, // Task expiration time (in milliseconds)
-      buyAmountUI: 0.1, // Amount in ETH/SOL/BNB, etc.
-      maxSlippage: 0.5, // Max slippage allowed (e.g., 5%)
-      minLiquidity: 5000, // Minimum liquidity required (in USD)
-      retries: 1
+      expireDelta: 1800000, // 30 min task expiration time (in milliseconds) 
+      buySettings: {
+        buyAmountUI: 0.1,
+        priorityFee: 0.00005,
+        gasFeeDelta: 5,
+        maxFeePerGas: 100,
+        jitoEnabled: true,
+        jitoTip: 0.001,
+        maxSlippage: 0.1,
+        minLiquidity: 10000,
+        concurrentNodes: 3,
+        retries: 1
+      },
+      sellSettings: {
+        enabled: true,
+        stopEarnEnabled: true,
+        stopEarnMode: "profit_percent",
+        stopEarnPercentOrPrice: 1,
+        stopLossEnabled: true,
+        stopLossMode: "loss_percent",
+        stopLossPercentOrPrice: 0.5,
+        autoSell: true,
+        priorityFee: "0.00005",
+        gasFeeDelta: 5,
+        maxFeePerGas: 100,
+        jitoEnabled: true,
+        jitoTip: 0.001,
+        maxSlippage: 0.2,
+        concurrentNodes: 3,
+        retries: 5
+      }
     };
 
     const response = await axios.post(apiUrl, sniperData, {
