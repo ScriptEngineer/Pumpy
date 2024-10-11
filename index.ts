@@ -231,9 +231,13 @@ async function mainMenu(): Promise<void> {
         value: 'deposit_wsol',
         description: 'Deposit into WSOL account',
       },{
+        name: 'Start Pumping',
+        value: 'start_pumping',
+        description: 'Start Pumping!',
+      },{
         name: 'Start Sniper',
         value: 'start_sniper',
-        description: 'Start Pumping!',
+        description: 'Start Sniping a Specific Token',
       },{
         name: 'Get Token Metadata',
         value: 'token_metadata',
@@ -358,8 +362,23 @@ async function mainMenu(): Promise<void> {
 
     // Initiate the swap (sell)
     await mainMenu(); // Re-run menu after selling
+  } else if (answer === 'start_pumping') {
+    await startListener(); // Start the sniper process
   } else if (answer === 'start_sniper') {
-    await startSniper(); // Start the sniper process
+    const tokenMint = await input({
+      message: 'Please enter the token address (mint) to snipe:',
+      validate(value: string) {
+        const valid = value.length === 44 || value.length === 43;
+        return valid || 'Please enter a valid Solana token address.';
+      },
+    });
+
+    setupSniper({
+      tokenAddress: tokenMint,
+      chain: 'Solana',
+    });
+
+    await mainMenu(); // Re-run menu after metadata fetch
   } else if (answer === 'token_metadata') {
     const tokenMint = await input({
       message: 'Please enter the token address (mint) to fetch metadata:',
@@ -509,6 +528,40 @@ async function syncWSOLAccount(wsolAccountPubkey: PublicKey): Promise<void> {
 
 }
 
+async function setupSniper({
+  tokenAddress,
+  chain = 'Solana',
+}) {
+  try {
+  
+    // Define the request details
+    const apiUrl = 'https://api-bot-v1.dbotx.com/automation/snipe_order';
+    const sniperData = {
+      enabled: true,
+      chain: chain,
+      token: tokenAddress,
+      walletId: process.env.DBOT_WALLET,
+      expireDelta: 86400000, // Task expiration time (in milliseconds)
+      buyAmountUI: 0.1, // Amount in ETH/SOL/BNB, etc.
+      maxSlippage: 0.5, // Max slippage allowed (e.g., 5%)
+      minLiquidity: 5000, // Minimum liquidity required (in USD)
+      retries: 1
+    };
+
+    const response = await axios.post(apiUrl, sniperData, {
+      headers: {
+        'X-API-KEY': process.env.DBOT_API,
+        'Content-Type': 'application/json'
+      }
+    });
+    console.log('Sniper created successfully:', response.data);
+
+  } catch (error: any) {
+    console.error('Error setting up sniper:', error.message);
+  }
+
+}
+
 async function swapToken({
   newTokenMint,
   poolKeys,
@@ -596,7 +649,7 @@ async function swapToken({
   }
 }
 
-async function startSniper(): Promise<void> {
+async function startListener(): Promise<void> {
   try {
 
     let readyForNext = true;
