@@ -796,7 +796,7 @@ async function walletWatcher(): Promise<void> {
       } catch (error: any) {
         console.error('Error in wallet watcher:', error.message);
       }
-    }
+    });
 
 
   } catch (error: any) {
