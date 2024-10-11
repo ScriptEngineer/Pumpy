@@ -557,12 +557,17 @@ async function getWarchest() {
 async function botSwap({
   tokenAddress,
   chain = 'solana',
-  type = "sell"
+  type = 'sell',
+  simulate = false,
 }) {
   try {
   
+    let apiUrl = 'https://api-bot-v1.dbotx.com/automation/swap_order';
     // Define the request details
-    const apiUrl = 'https://api-bot-v1.dbotx.com/automation/swap_order';
+    if (simulate) {
+      apiUrl = "https://api-bot-v1.dbotx.com/simulator/sim_swap_order";
+    }
+
     const sniperData = {
       chain: chain,
       pair: tokenAddress,
@@ -602,7 +607,6 @@ async function botSwap({
         'Content-Type': 'application/json'
       }
     });
-
 
     console.log('Swap successful:', response.data);
     return response.data;
@@ -973,14 +977,14 @@ async function startListener(): Promise<void> {
               let sendIt = await botSwap({
                 tokenAddress: newTokenMint,
                 chain: 'solana',
-                type: "buy"
+                type: "buy",
+                simulate: true
               });
 
-              if(sendIt.err) {
-                tokenBought = true;
-              } else {
-                tokenBought = true;
-              }
+              if (sendIt.err) {
+                console.log("Error");
+                console.log(sendIt.err)
+              } 
 
               /*
               console.log("Calculating amount out...");
