@@ -981,11 +981,6 @@ async function startListener(): Promise<void> {
                 simulate: true
               });
 
-              if (sendIt.err) {
-                console.log("Error");
-                console.log(sendIt.err)
-              } 
-
               /*
               console.log("Calculating amount out...");
 
