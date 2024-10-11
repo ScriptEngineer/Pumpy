@@ -255,6 +255,10 @@ async function mainMenu(): Promise<void> {
         value: 'wrap_sol',
         description: 'Convert SOL in Token Account into WSOL',
       },{
+        name: 'Start Watcher',
+        value: 'start_watcher',
+        description: 'Listen for wallet activity',
+      },{
         name: 'Exit',
         value: 'exit',
       },
@@ -413,7 +417,11 @@ async function mainMenu(): Promise<void> {
     const wsolAccountPubkey = await getOrCreateWSOLAccount(amountInLamports);
     await syncWSOLAccount(wsolAccountPubkey);
     await mainMenu();
-  } else if (answer === 'exit') {
+  } else if (answer === 'start_watcher') {
+
+    await walletWatcher(); 
+    
+  }else if (answer === 'exit') {
     console.log('Exiting...');
     process.exit(0);
   }
@@ -767,11 +775,39 @@ async function swapToken({
   }
 }
 
+async function walletWatcher(): Promise<void> {
+  try {
+
+    const app = express();
+    app.use(bodyParserJson());
+
+    app.listen(PORT, async () => {
+      console.log(`Listening for wallet activity...`);
+    });
+
+    app.post('/watcher', async (req: express.Request, res: express.Response) => {
+      try {
+        
+        console.log('WALLET ACTIVITY NOTICED!!!');
+        const data = req.body[0];
+        console.log(data);
+
+
+      } catch (error: any) {
+        console.error('Error in wallet watcher:', error.message);
+      }
+    }
+
+
+  } catch (error: any) {
+    console.error('Error in wallet watcher:', error.message);
+  }
+}
+
 async function startListener(): Promise<void> {
   try {
 
     let readyForNext = true;
-    console.log('');
     const app = express();
     app.use(bodyParserJson());
  
