@@ -54,23 +54,23 @@ import BigNumber from 'bignumber.js';
 
 dotenv.config(); // Load environment variables
 
-const texasTimezone = 'America/Chicago';
-const PORT = process.env.PORT || 3000;
-const JITO_ENDPOINT = 'https://bundle-api.mainnet.jito.network'; // Updated to the correct Jito endpoint
-const RPC_URL = process.env.RPC_URL;
-const PRIVATE_KEY = process.env.PRIVATE_KEY; // Base58 encoded
-const WSOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
-
+const PRIVATE_KEY = process.env.PRIVATE_KEY; 
 if (!PRIVATE_KEY) {
   throw new Error('PRIVATE_KEY is not set in environment variables');
 }
 
+const texasTimezone = 'America/Chicago';
+const PORT = process.env.PORT || 3000;
+const JITO_ENDPOINT = 'https://bundle-api.mainnet.jito.network'; // Updated to the correct Jito endpoint
+const RPC_URL = process.env.RPC_URL;
+const WSOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
 const secretKey = bs58.decode(PRIVATE_KEY);
 const wallet = Keypair.fromSecretKey(secretKey);
 const connection = new Connection(RPC_URL!, 'confirmed');
 const RAYDIUM_AMM_PROGRAM_ID = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
-const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey('5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS');
 const RAYDIUM_SWAP_PROGRAM = '5quB2RnXqpVpDwFETegxYGrvp3pCHNRtT5Rt6r5wNKS';
+const PUMP_FUN_PROGRAM = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
+
 let tokenBought = false;
 
 async function getTokenMetadata(mintAddress: string): Promise<any> {
