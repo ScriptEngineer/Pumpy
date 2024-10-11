@@ -958,14 +958,13 @@ async function startListener(): Promise<void> {
                   console.error('Error writing to file:', err);
                 }
               });
-        
     
               console.log(tokenData);
               /*
               console.log(`Token Price Per Token: ${tokenInfo.result.token_info.price_info.price_per_token}`);
               */
 
-              if (poolInfo.baseReserve.isZero() || poolInfo.quoteReserve.isZero()) {
+              if (poolInfo.baseReserve.isZero() || poolInfo.quoteReserve.isZero() || liquidityUSD.toNumber() < 10000) {
                 console.error('Pool has insufficient liquidity for swapping.');
                 readyForNext = true;
                 return;
