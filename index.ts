@@ -247,6 +247,10 @@ async function mainMenu(): Promise<void> {
         value: 'view_balances',
         description: 'See shitcoin balances in USDC',
       },{
+        name: 'Get Warchest',
+        value: 'get_warchest',
+        description: 'View Warchest Info',
+      },{
         name: 'Wrap SOL',
         value: 'wrap_sol',
         description: 'Convert SOL in Token Account into WSOL',
@@ -302,6 +306,9 @@ async function mainMenu(): Promise<void> {
     // Initiate the swap (buy)
     await mainMenu(); // Re-run menu after buying
 
+  } else if (answer === 'get_warchest') {
+    await getWarchest();
+    await mainMenu();
   } else if (answer === 'deposit_wsol') {
   
     console.log("Getting or creating the WSOL account...");
@@ -375,7 +382,7 @@ async function mainMenu(): Promise<void> {
 
     setupSniper({
       tokenAddress: tokenMint,
-      chain: 'Solana',
+      chain: 'solana',
     });
 
     await mainMenu(); // Re-run menu after metadata fetch
@@ -528,9 +535,29 @@ async function syncWSOLAccount(wsolAccountPubkey: PublicKey): Promise<void> {
 
 }
 
+async function getWarchest() {
+  try {
+
+    // Define the request details
+    const apiUrl = 'https://api-bot-v1.dbotx.com/account/wallets?type=solana';
+    const response = await axios.get(apiUrl, {
+      headers: {
+        'X-API-KEY': process.env.DBOT_API,
+        'Content-Type': 'application/json'
+      }
+    });
+    console.log(response.data.res);
+
+  } catch (error: any) {
+    console.error('Error setting up sniper:', error.message);
+  }
+
+}
+
+
 async function setupSniper({
   tokenAddress,
-  chain = 'Solana',
+  chain = 'solana',
 }) {
   try {
   
@@ -540,7 +567,7 @@ async function setupSniper({
       enabled: true,
       chain: chain,
       token: tokenAddress,
-      walletId: process.env.DBOT_WALLET,
+      walletId: "lztuv37x1q21uo",
       expireDelta: 1800000, // 30 min task expiration time (in milliseconds) 
       buySettings: {
         buyAmountUI: 0.1,
