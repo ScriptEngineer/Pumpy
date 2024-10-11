@@ -1,0 +1,14 @@
+
+              -------------------------------
+              Token Address: FwQnyJnL8e3Yg9TyyCeYP3ZCpCU54BS1XJZMqLb5pump
+              Token Symbol: finn
+              Token Supply: 999999999654885
+              Token Decimals: 6
+              Token Price Per Token: 0.00000746974
+              Token Owner: 
+              Creators: 
+              Pool ID: qaswWwiJNwZBzWE223a4jhAgf5S4ttoRxfaKUuSMT84
+              Token Liquidity : 27654576202.46 USD
+              Timestamp: 2024-10-11 08:52:04 Central Daylight Time
+              -------------------------------
+
