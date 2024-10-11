@@ -73,6 +73,40 @@ const PUMP_FUN_PROGRAM = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEw
 
 let tokenBought = false;
 
+async function getWalletAssets(targetAddress: string): Promise<any> {
+
+  try {
+    
+    const response = await fetch(`https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "lookup-" + targetAddress,
+        method: "getAssetsByOwner",
+        params: {
+          ownerAddress: targetAddress,
+          page: 1, // Starts at 1
+          limit: 1000,
+          displayOptions: {
+            showFungible: true //return both fungible and non-fungible tokens
+          }
+        },
+      }),
+    });
+
+    const data = await response.json();
+    return data;
+
+  } catch (error: any) {
+    console.error('Error fetching token metadata from Helius API:', error.message);
+    return {}; // Return empty object on failure
+  }
+}
+
+
 async function getTokenMetadata(mintAddress: string): Promise<any> {
 
   try {
@@ -251,6 +285,10 @@ async function mainMenu(): Promise<void> {
         value: 'get_warchest',
         description: 'View Warchest Info',
       },{
+        name: 'Inspect Wallet',
+        value: 'inspect_wallet',
+        description: 'View Assets By Owner',
+      },{
         name: 'Wrap SOL',
         value: 'wrap_sol',
         description: 'Convert SOL in Token Account into WSOL',
@@ -421,7 +459,34 @@ async function mainMenu(): Promise<void> {
 
     await walletWatcher(); 
     
-  }else if (answer === 'exit') {
+  } else if (answer === 'inspect_wallet') {
+
+    const targetAddress = await input({
+      message: 'Please enter address to inspect:'
+    });
+
+    const assets = await getWalletAssets(targetAddress);
+
+    if (assets.result && assets.result.items.length > 0) {
+      const walletData = `
+      -------------------------------
+      Total Assets: ${assets.result.total}
+      -------------------------------\n\n`;
+
+      console.log(walletData);
+
+      assets.result.items.forEach(ass => {
+        console.log(ass);
+        console.log(`\n Symbol: ${ass.content.metadata.symbol} \n ${ass.id}`);
+      });
+
+    } else {
+      console.log("No assets found.");
+    }
+
+    await mainMenu();
+
+  } else if (answer === 'exit') {
     console.log('Exiting...');
     process.exit(0);
   }
