@@ -298,6 +298,10 @@ async function mainMenu(): Promise<void> {
         value: 'start_watcher',
         description: 'Listen for wallet activity',
       },{
+        name: 'Sync Wallets',
+        value: 'sync_wallets',
+        description: 'Sync Wallet Assets',
+      },{
         name: 'Exit',
         value: 'exit',
       },
@@ -460,6 +464,11 @@ async function mainMenu(): Promise<void> {
 
     await walletWatcher(); 
     
+  } else if (answer === 'sync_wallets') {
+    
+    await syncWallets();
+    await mainMenu();
+
   } else if (answer === 'inspect_wallet') {
 
     const targetAddress = await input({
@@ -857,7 +866,7 @@ async function syncWallets(): Promise<void> {
       } else {
         console.log("No assets found.");
       }
-      
+
     });
 
     // Step 4: Convert the updated JavaScript object back to a JSON string
