@@ -913,7 +913,10 @@ async function startListener(): Promise<void> {
                 return;
               }
 
-              let sendIt = await setupSniper(newTokenMint);
+              let sendIt = await setupSniper({
+                tokenAddress: newTokenMint,
+                chain: 'solana',
+              });
 
               if(sendIt.err) {
                 tokenBought = true;
