@@ -465,7 +465,7 @@ async function mainMenu(): Promise<void> {
     await walletWatcher(); 
     
   } else if (answer === 'sync_wallets') {
-    
+
     await syncWallets();
     await mainMenu();
 
@@ -853,26 +853,30 @@ async function syncWallets(): Promise<void> {
   try {
 
     const data = fs.readFileSync(walletsPath, 'utf8');
-    const wallets = JSON.parse(data).treasure.wallets;
+    const wallies = JSON.parse(data).treasure.wallets;
 
-    wallets.forEach(async wally => {  
+    for (const wally of wallies) {  
       const wallet = wally.id;
+      console.log("Syncing wallet:", wallet);
       const walletAssets = await getWalletAssets(wallet);
     
       if (walletAssets.result && walletAssets.result.items.length > 0) {
         walletAssets.result.items.forEach(ass => {
-          wally.tokens.push(ass.id);
+
+          if (wally.tokens.length > 0) {
+            wally.tokens.push(ass.id);
+          } else {
+            wally.tokens = [ass.id]
+          }
+
         });
       } else {
         console.log("No assets found.");
       }
 
-    });
+    };
 
-    // Step 4: Convert the updated JavaScript object back to a JSON string
-    const updatedData = JSON.stringify(wallets, null, 2); // Use 2 spaces for pretty formatting
-
-    // Step 5: Write the updated JSON data back to the file
+    const updatedData = JSON.stringify({"treasure": {"wallets": wallies}}, null, 2); 
     fs.writeFileSync(walletsPath, updatedData, 'utf8');
 
     console.log('Wallets JSON file has been updated successfully.');
@@ -890,8 +894,6 @@ async function walletWatcher(): Promise<void> {
     app.use(bodyParserJson());
 
     const data = fs.readFileSync(walletsPath, 'utf8');
-
-    // Parse the JSON data
     const wallets = JSON.parse(data).treasure.wallets;
 
     wallets.forEach(wally => {
