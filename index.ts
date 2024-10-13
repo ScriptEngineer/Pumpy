@@ -922,6 +922,8 @@ async function walletWatcher(): Promise<void> {
 
         let checkWally = await getWalletAssets("2NuTVvXdrDLDY1jkYVQZvPLxgquRx8BcFLivd6QZK9nn");
 
+        console.log(checkWally.result);
+        /*
         if (checkWally.result && checkWally.result.items.length > 0) {
           checkWally.result.items.forEach(ass => {
             if (!searchSet.has(ass.id)) {
@@ -933,6 +935,7 @@ async function walletWatcher(): Promise<void> {
         } else {
           console.log("No assets found.");
         }
+        */
 
       } catch (error: any) {
         console.error('Error in wallet watcher:', error.message);
