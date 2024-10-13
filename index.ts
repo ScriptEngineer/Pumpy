@@ -896,16 +896,6 @@ async function walletWatcher(): Promise<void> {
     const data = fs.readFileSync(walletsPath, 'utf8');
     const wallets = JSON.parse(data).treasure.wallets;
 
-    wallets.forEach(wally => {
-      console.log(wally.id);
-
-      wally.tokens.forEach(token => { 
-        console.log(token);
-      });
-
-    });
-
-
     app.listen(PORT, async () => {
       console.log(`Listening for wallet activity...`);
     });
