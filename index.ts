@@ -483,8 +483,6 @@ async function mainMenu(): Promise<void> {
       Total Assets: ${assets.result.total}
       -------------------------------\n\n`;
 
-      console.log(walletData);
-
       assets.result.items.forEach(ass => {
         console.log(`\n Symbol: ${ass.content.metadata.symbol} \n ${ass.id}`);
       });
@@ -905,8 +903,6 @@ async function walletWatcher(): Promise<void> {
         
         console.log('WALLET ACTIVITY NOTICED!!!');
         const data = req.body[0];
-        console.log(data);
-
         const feePayer = data.feePayer;
         const matchedWally = wallets.find(wally => wally.id === feePayer);
 
@@ -918,18 +914,22 @@ async function walletWatcher(): Promise<void> {
 
           if (checkWally.result && checkWally.result.items.length > 0) {
             checkWally.result.items.forEach(ass => {
+
+              if (ass.interface == 'FungibleToken') {
+                console.log(`\n Symbol: ${ass.content.metadata.symbol} \n ${ass.id}`);
+              }
+              
               if (!searchSet.has(ass.id) && ass.interface == 'FungibleToken') {
                 console.log("NEW SHINY COIN!!");
                 console.log(ass.id);
               }
+
             });
-      
           } else {
             console.log("No assets found.");
           }
 
         }
-
 
       } catch (error: any) {
         console.error('Error in wallet watcher:', error.message);
