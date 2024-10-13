@@ -917,11 +917,6 @@ async function walletWatcher(): Promise<void> {
 
         const copyWally = "2NuTVvXdrDLDY1jkYVQZvPLxgquRx8BcFLivd6QZK9nn";
 
-        /*
-        const feePayer = data.feePayer;
-        const matchedWally = wallets.find(wally => wally.id === feePayer);
-        */
-
         const matchedWally = wallets.find(wally => wally.id === copyWally);
         if (matchedWally) {
 
@@ -932,12 +927,9 @@ async function walletWatcher(): Promise<void> {
           if (checkWally.result && checkWally.result.items.length > 0) {
             checkWally.result.items.forEach(ass => {
 
-              if (ass.interface == 'FungibleToken') {
-                console.log(`\n Symbol: ${ass.content.metadata.symbol} \n ${ass.id}`);
-              }
-              
               if (!searchSet.has(ass.id) && ass.interface == 'FungibleToken') {
                 console.log("NEW SHINY COIN!!");
+                console.log(`\n Symbol: ${ass.content.metadata.symbol} \n`);
                 console.log(ass.id);
               }
 
@@ -992,11 +984,23 @@ async function telegramBot(): Promise<void> {
       client.addEventHandler(async (update) => {
         if (update.message) {
 
-          const message = update.message;
-          const sender = await client.getEntity(message.senderId);
+          const messageWhole = update.message;
+          const sender = await client.getEntity(messageWhole.senderId);
 
-          if ('username' in sender && sender.username === 'ray_yellow_bot' && message.message) {
-            console.log("Message from Ray Yellow Bot:", message.message);
+          if ('username' in sender && sender.username === 'ray_yellow_bot' && messageWhole.message) {
+            const message = messageWhole.trim();
+
+            // Extract the "🟢 BUY" part using regular expression
+            const buyMatch = message.match(/🟢 BUY [^\n]+/);
+            const buyText = buyMatch ? buyMatch[0] : "No '🟢 BUY' found";
+        
+            // Extract the last line (ignoring empty lines)
+            const lines = message.split('\n').filter(line => line.trim() !== '');
+            const lastLine = lines.length > 0 ? lines[lines.length - 1] : "No last line found";
+        
+            // Print or return the extracted parts
+            console.log("Extracted '🟢 BUY' part:", buyText);
+            console.log("Extracted last line:", lastLine);
           }
 
         }
