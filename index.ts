@@ -988,7 +988,7 @@ async function telegramBot(): Promise<void> {
           const sender = await client.getEntity(messageWhole.senderId);
 
           if ('username' in sender && sender.username === 'ray_yellow_bot' && messageWhole.message) {
-            const message = messageWhole.trim();
+            const message = messageWhole.message.trim();
 
             // Extract the "🟢 BUY" part using regular expression
             const buyMatch = message.match(/🟢 BUY [^\n]+/);
@@ -999,8 +999,11 @@ async function telegramBot(): Promise<void> {
             const lastLine = lines.length > 0 ? lines[lines.length - 1] : "No last line found";
         
             // Print or return the extracted parts
-            console.log("Extracted '🟢 BUY' part:", buyText);
-            console.log("Extracted last line:", lastLine);
+            if (buyMatch) {
+              console.log("Nut bought something:");
+              console.log(lastLine);
+            }
+
           }
 
         }
