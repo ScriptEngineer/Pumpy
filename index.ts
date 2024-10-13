@@ -51,6 +51,9 @@ import bs58 from 'bs58';
 import dotenv from 'dotenv';
 import BN from 'bn.js'; // BigNumber library for handling large integers
 import BigNumber from 'bignumber.js';
+import { TelegramClient } from 'telegram';
+import { StringSession } from 'telegram/sessions';
+import input from "input";
 
 dotenv.config(); // Load environment variables
 
@@ -274,6 +277,10 @@ async function mainMenu(): Promise<void> {
         value: 'start_sniper',
         description: 'Start Sniping a Specific Token',
       },{
+        name: 'Start Tele Bot',
+        value: 'start_telegram_bot',
+        description: 'Start Telegram Bot',
+      },{
         name: 'Get Token Metadata',
         value: 'token_metadata',
         description: 'Get token information',
@@ -463,6 +470,10 @@ async function mainMenu(): Promise<void> {
   } else if (answer === 'start_watcher') {
 
     await walletWatcher(); 
+    
+  } else if (answer === 'start_telegram_bot') {
+
+    await telegramBot(); 
     
   } else if (answer === 'sync_wallets') {
 
@@ -903,10 +914,16 @@ async function walletWatcher(): Promise<void> {
         
         console.log('WALLET ACTIVITY NOTICED!!!');
         const data = req.body[0];
+
+        const copyWally = "2NuTVvXdrDLDY1jkYVQZvPLxgquRx8BcFLivd6QZK9nn";
+
+        /*
         const feePayer = data.feePayer;
         const matchedWally = wallets.find(wally => wally.id === feePayer);
+        */
 
-        if (matchedWally && feePayer) {
+        const matchedWally = wallets.find(wally => wally.id === copyWally);
+        if (matchedWally) {
 
           const searchSet = new Set(matchedWally.tokens);  
           let checkWally = await getWalletAssets(matchedWally.id);
@@ -925,6 +942,7 @@ async function walletWatcher(): Promise<void> {
               }
 
             });
+
           } else {
             console.log("No assets found.");
           }
@@ -940,6 +958,56 @@ async function walletWatcher(): Promise<void> {
   } catch (error: any) {
     console.error('Error in wallet watcher:', error.message);
   }
+}
+
+async function telegramBot(): Promise<void> {
+  try {
+
+    console.log("Starting Telegram Bot");
+    const apiId = parseInt(process.env.TELEGRAM_API_ID);  // Your API ID as a number
+    const apiHash = process.env.TELEGRAM_API_HASH;  // Your API Hash
+    const stringSession = new StringSession('1AQAOMTQ5LjE1NC4xNzUuNTgBuwg6qmHltyP/pw3CUfO8UaXoFG/U4mnzVF7ciRm5N7U4IoVA2Agjz/zINU98EmBFXCWBjUg1mjaNK8yPkmxlAVuW0nhr8mtg0VqY+YZMff1l3usJEtZbs53OJV5EpFvaWGBy5JtBfJhZ+Ykf5x5srNxpCpvZDtfClbu7aVXj3CBZ4Za0eX3Tw0kZnA2mBNNCh6E0bG4mpJmru25u8EiWmTD3VzEP22R8RY5QX7eTawSf7NIKDW9Nl8m0A7Evms5ePr/dUnIUN0FaeTyeWdTh6T0zCPQhUMeUqKWfTNFmOjlH9llZ9ybSQBneMzueKZfiSYncVOT7Q69ocd8ysuxUQKg=');  // Empty string if you haven't saved a session yet
+
+    (async () => {
+      console.log("Loading interactive example...");
+      const client = new TelegramClient(stringSession, apiId, apiHash, {
+        connectionRetries: 5,
+      });
+
+      await client.start({
+        phoneNumber: async () => await input.text("Please enter your number: "),
+        password: async () => await input.text("Please enter your password: "),
+        phoneCode: async () =>
+          await input.text("Please enter the code you received: "),
+        onError: (err) => console.log(err),
+      });
+
+      console.log("You should now be connected.");
+      console.log(client.session.save()); // Save this string to avoid logging in again
+
+      const targetUsernames = ['target_username1', 'target_username2'];  // Add the usernames you want to listen for
+      const targetUserIds = [123456789, 987654321];  // Add specific user IDs if you know them
+
+      // Event handler for new messages
+      client.addEventHandler(async (update) => {
+        if (update.message) {
+
+          const message = update.message;
+          const sender = await client.getEntity(message.senderId);
+
+          if ('username' in sender && sender.username === 'ray_yellow_bot' && message.message) {
+            console.log("Message from Ray Yellow Bot:", message.message);
+          }
+
+        }
+      });
+      
+    })();
+
+  } catch(e) {
+    console.error(e);
+  }
+
 }
 
 async function startListener(): Promise<void> {
