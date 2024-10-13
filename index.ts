@@ -863,9 +863,9 @@ async function syncWallets(): Promise<void> {
       if (walletAssets.result && walletAssets.result.items.length > 0) {
         walletAssets.result.items.forEach(ass => {
 
-          if (wally.tokens.length > 0) {
+          if (wally.tokens.length > 0 && ass.interface == 'FungibleToken') {
             wally.tokens.push(ass.id);
-          } else {
+          } else if (ass.interface == 'FungibleToken') {
             wally.tokens = [ass.id]
           }
 
@@ -917,25 +917,29 @@ async function walletWatcher(): Promise<void> {
         const data = req.body[0];
         console.log(data);
 
-        const matchedWally = wallets.find(wally => wally.id === "2NuTVvXdrDLDY1jkYVQZvPLxgquRx8BcFLivd6QZK9nn");
-        const searchSet = new Set(matchedWally.tokens);
+        const feePayer = data.feePayer;
+        const matchedWally = wallets.find(wally => wally.id === feePayer);
 
-        let checkWally = await getWalletAssets("2NuTVvXdrDLDY1jkYVQZvPLxgquRx8BcFLivd6QZK9nn");
+        if (matchedWally && feePayer) {
 
-        console.log(checkWally.result);
-        /*
-        if (checkWally.result && checkWally.result.items.length > 0) {
-          checkWally.result.items.forEach(ass => {
-            if (!searchSet.has(ass.id)) {
-              console.log("NEW SHINY COIN!!");
-              console.log(ass.id);
-            }
-          });
-    
-        } else {
-          console.log("No assets found.");
+          const searchSet = new Set(matchedWally.tokens);  
+          let checkWally = await getWalletAssets(matchedWally.id);
+          console.log(checkWally.result);
+
+          if (checkWally.result && checkWally.result.items.length > 0) {
+            checkWally.result.items.forEach(ass => {
+              if (!searchSet.has(ass.id) && ass.interface == 'FungibleToken') {
+                console.log("NEW SHINY COIN!!");
+                console.log(ass.id);
+              }
+            });
+      
+          } else {
+            console.log("No assets found.");
+          }
+
         }
-        */
+
 
       } catch (error: any) {
         console.error('Error in wallet watcher:', error.message);
