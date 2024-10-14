@@ -665,7 +665,7 @@ async function botSwap({
       walletId: "lztuv37x1q21uo",
       type: type,
       amountOrPercent: 0.05,
-      stopEarnPercent: 0.5,
+      stopEarnPercent: 0.4,
       stopLossPercent: 0.4,
       stopEarnGroup: [
         { 
@@ -686,10 +686,10 @@ async function botSwap({
     	gasFeeDelta: 5, 
       maxFeePerGas: 100, 
       jitoEnabled: true, 
-      jitoTip: 0.001, 
-      maxSlippage: 0.1, 
+      jitoTip: 0.01, 
+      maxSlippage: 0.2, 
       concurrentNodes: 3, 
-      retries: 1
+      retries: 10
     };
 
     const response = await axios.post(apiUrl, sniperData, {
@@ -985,25 +985,30 @@ async function telegramBot(): Promise<void> {
         if (update.message) {
 
           const messageWhole = update.message;
-          const sender = await client.getEntity(messageWhole.senderId);
+          const message = messageWhole.message.trim();
 
-          if ('username' in sender && sender.username === 'ray_yellow_bot' && messageWhole.message) {
-            const message = messageWhole.message.trim();
+          // Extract the "🟢 BUY" part using regular expression
+          const buyMatch = message.match(/🟢 BUY [^\n]+/);
+          const buyText = buyMatch ? buyMatch[0] : "No '🟢 BUY' found";
+      
+          // Extract the last line (ignoring empty lines)
+          const lines = message.split('\n').filter(line => line.trim() !== '');
+          const lastLine = lines.length > 0 ? lines[lines.length - 1] : "No last line found";
+      
+          // Print or return the extracted parts
+          if (buyMatch) {
+            console.log("Nut bought something:");
+            console.log(lastLine);
 
-            // Extract the "🟢 BUY" part using regular expression
-            const buyMatch = message.match(/🟢 BUY [^\n]+/);
-            const buyText = buyMatch ? buyMatch[0] : "No '🟢 BUY' found";
-        
-            // Extract the last line (ignoring empty lines)
-            const lines = message.split('\n').filter(line => line.trim() !== '');
-            const lastLine = lines.length > 0 ? lines[lines.length - 1] : "No last line found";
-        
-            // Print or return the extracted parts
-            if (buyMatch) {
-              console.log("Nut bought something:");
-              console.log(lastLine);
-            }
-
+            botSwap({
+              tokenAddress: lastLine,
+              chain: 'solana',
+              type: 'buy',
+              simulate: false,
+            })
+            
+          } else {
+            console.log(message);
           }
 
         }
