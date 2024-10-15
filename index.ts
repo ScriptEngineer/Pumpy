@@ -864,8 +864,8 @@ async function syncWallets(): Promise<void> {
 
     for (const wally of wallies) {  
       const wallet = wally.id;
-      console.log("Syncing wallet:", wallet);
       const walletAssets = await getWalletAssets(wallet);
+      console.log("Syncing wallet:", wallet);
     
       if (walletAssets.result && walletAssets.result.items.length > 0) {
         walletAssets.result.items.forEach(ass => {
@@ -918,7 +918,6 @@ async function walletWatcher(): Promise<void> {
 
           const searchSet = new Set(matchedWally.tokens);  
           let checkWally = await getWalletAssets(matchedWally.id);
-          console.log(checkWally.result);
 
           if (checkWally.result && checkWally.result.items.length > 0) {
             checkWally.result.items.forEach(ass => {
