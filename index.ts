@@ -956,13 +956,7 @@ async function sendJitoPump(mintAddress, type="sell"): Promise<void> {
 
   try {
 
-    const signerKeyPairs = [
-      wallet
-      /*
-      Keypair.fromSecretKey(bs58.decode("Wallet A base 58 private key here")),
-      Keypair.fromSecretKey(bs58.decode("Wallet B base 58 private key here")),
-      */
-    ];
+    const signerKeyPairs = [wallet];
 
     const bundledTxArgs = [
       {
@@ -975,18 +969,6 @@ async function sendJitoPump(mintAddress, type="sell"): Promise<void> {
           "priorityFee": 0.00005, //priority fee on the first tx is used for jito tip
           "pool": "pump"
       }
-      /*
-      ,{
-          publicKey: signerKeyPairs[1].publicKey.toBase58(),
-          "action": "buy", // "buy", "sell", or "create"
-          "mint": "2xHkesAQteG9yz48SDaVAtKdFU6Bvdo9sXS3uQCbpump", 
-          "denominatedInSol": "false",  
-          "amount": 1000000, 
-          "slippage": 50, 
-          "priorityFee": 0.0, //priority fee after first tx is ignored
-          "pool": "pump"
-      },
-      */ 
     ];
 
     const response = await fetch(`https://pumpportal.fun/api/trade-local`, {
@@ -1002,15 +984,14 @@ async function sendJitoPump(mintAddress, type="sell"): Promise<void> {
       const transactions = await response.json();
       console.log(transactions);
       
-      /*
       let encodedSignedTransactions = [];
       let signatures = [];
 
       for(let i = 0; i < bundledTxArgs.length; i++){ //decode and sign each tx
-          const tx = VersionedTransaction.deserialize(new Uint8Array(bs58.decode(transactions[i])));
-          tx.sign([signerKeyPairs[i]]);
-          encodedSignedTransactions.push(bs58.encode(tx.serialize()));
-          signatures.push(bs58.encode(tx.signatures[0]));
+        const tx = VersionedTransaction.deserialize(new Uint8Array(bs58.decode(transactions[i])));
+        tx.sign([signerKeyPairs[i]]);
+        encodedSignedTransactions.push(bs58.encode(tx.serialize()));
+        signatures.push(bs58.encode(tx.signatures[0]));
       }
       
       try{
@@ -1025,7 +1006,7 @@ async function sendJitoPump(mintAddress, type="sell"): Promise<void> {
                 "id": 1,
                 "method": "sendBundle",
                 "params": [
-                encodedSignedTransactions
+                  encodedSignedTransactions
                 ]
             })
         });
@@ -1039,7 +1020,7 @@ async function sendJitoPump(mintAddress, type="sell"): Promise<void> {
       for(let i = 0; i < signatures.length; i++){
         console.log(`Transaction ${i}: https://solscan.io/tx/${signatures[i]}`);
       }
-      */
+    
 
     } else {
       console.log(response.statusText); // log error
