@@ -930,10 +930,7 @@ async function walletWatcher(): Promise<void> {
                 matchedWally.tokens.unshift(ass.id);
                 const updatedData = JSON.stringify({"treasure": {"wallets": wallets}}, null, 2); 
                 fs.writeFileSync(walletsPath, updatedData, 'utf8');
-                sendJitoPump({
-                  mintAddress: ass.id,
-                  type: "buy"
-                });
+                sendJitoPump(ass.id, "buy");
               }
 
             });
