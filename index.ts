@@ -317,7 +317,7 @@ async function mainMenu(): Promise<void> {
   });
 
   if (answer === 'buy_token') {
-    // Ask the user for the token address
+
     const tokenMint = await input({
       message: 'Please enter the token address (mint):',
       validate(value: string) {
@@ -335,20 +335,15 @@ async function mainMenu(): Promise<void> {
       wallet.publicKey
     );
 
-    // Retrieve and display token info
     if (tokenAccount && metadata && mintAddress) {
       console.log(metadata);
       console.log(`\nToken Symbol: ${metadata.result.token_info.symbol}`);
       console.log(`Token Supply: ${metadata.result.token_info.supply}`);
       console.log(`Token Decimals: ${metadata.result.token_info.decimals}`);
       console.log(`Token Price Per Token: ${metadata.result.token_info.price_info.price_per_token}`);
-    } else {
-      console.error('Could not fetch token data.');
-      await mainMenu(); // Return to menu if no metadata found
-      return;
     }
-
-    // Ask for the amount of SOL to spend for the token
+   
+    /*
     const transferAmount = await input({
       message: 'Please enter the amount of SOL to spend on the token:',
       validate(value: string) {
@@ -356,13 +351,16 @@ async function mainMenu(): Promise<void> {
         return valid || 'Please enter a valid amount of SOL.';
       },
     });
+    */
 
-    // Initiate the swap (buy)
-    await mainMenu(); // Re-run menu after buying
+    sendJitoPump(mintAddress, "buy");
+    await mainMenu();
 
   } else if (answer === 'get_warchest') {
+
     await getWarchest();
     await mainMenu();
+
   } else if (answer === 'deposit_wsol') {
   
     console.log("Getting or creating the WSOL account...");
@@ -887,7 +885,6 @@ async function syncWallets(): Promise<void> {
 
     const updatedData = JSON.stringify({"treasure": {"wallets": wallies}}, null, 2); 
     fs.writeFileSync(walletsPath, updatedData, 'utf8');
-
     console.log('Wallets JSON file has been updated successfully.');
 
   } catch (error) {
@@ -902,22 +899,21 @@ async function walletWatcher(): Promise<void> {
     const app = express();
     app.use(bodyParserJson());
 
-    const data = fs.readFileSync(walletsPath, 'utf8');
-    const wallets = JSON.parse(data).treasure.wallets;
-
     app.listen(PORT, async () => {
       console.log(`Listening for wallet activity...`);
     });
 
     app.post('/watcher', async (req: express.Request, res: express.Response) => {
       try {
-        
-        console.log('WALLET ACTIVITY NOTICED!!!');
-        const data = req.body[0];
 
+        const walletsInfo = fs.readFileSync(walletsPath, 'utf8');
+        const wallets = JSON.parse(walletsInfo).treasure.wallets;
+        /*const data = req.body[0];*/
         const copyWally = "2NuTVvXdrDLDY1jkYVQZvPLxgquRx8BcFLivd6QZK9nn";
-
         const matchedWally = wallets.find(wally => wally.id === copyWally);
+    
+        console.log('WALLET ACTIVITY NOTICED!!!');
+
         if (matchedWally) {
 
           const searchSet = new Set(matchedWally.tokens);  
@@ -931,6 +927,14 @@ async function walletWatcher(): Promise<void> {
                 console.log("NEW SHINY COIN!!");
                 console.log(`\n Symbol: ${ass.content.metadata.symbol} \n`);
                 console.log(ass.id);
+
+                matchedWally.tokens.unshift(ass.id);
+                const updatedData = JSON.stringify({"treasure": {"wallets": wallets}}, null, 2); 
+                fs.writeFileSync(walletsPath, updatedData, 'utf8');
+                sendJitoPump({
+                  mintAddress: ass.id,
+                  type: "buy"
+                });
               }
 
             });
@@ -952,27 +956,31 @@ async function walletWatcher(): Promise<void> {
   }
 }
 
-async function sendJitoPump(): Promise<void> {
+async function sendJitoPump(mintAddress, type="sell"): Promise<void> {
 
   try {
+
     const signerKeyPairs = [
+      wallet
+      /*
       Keypair.fromSecretKey(bs58.decode("Wallet A base 58 private key here")),
       Keypair.fromSecretKey(bs58.decode("Wallet B base 58 private key here")),
-      // use up to 5 wallets
-  ];
+      */
+    ];
 
-  const bundledTxArgs = [
+    const bundledTxArgs = [
       {
           publicKey: signerKeyPairs[0].publicKey.toBase58(),
-          "action": "buy", // "buy", "sell", or "create"
-          "mint": "2xHkesAQteG9yz48SDaVAtKdFU6Bvdo9sXS3uQCbpump", 
+          "action": type,
+          "mint": mintAddress, 
           "denominatedInSol": "false",  
           "amount": 1000000, 
           "slippage": 50, 
           "priorityFee": 0.00005, //priority fee on the first tx is used for jito tip
           "pool": "pump"
-      },
-      {
+      }
+      /*
+      ,{
           publicKey: signerKeyPairs[1].publicKey.toBase58(),
           "action": "buy", // "buy", "sell", or "create"
           "mint": "2xHkesAQteG9yz48SDaVAtKdFU6Bvdo9sXS3uQCbpump", 
@@ -982,23 +990,26 @@ async function sendJitoPump(): Promise<void> {
           "priorityFee": 0.0, //priority fee after first tx is ignored
           "pool": "pump"
       },
-      // use up to 5 transactions
-  ];
+      */ 
+    ];
 
-  const response = await fetch(`https://pumpportal.fun/api/trade-local`, {
-      method: "POST",
-      headers: {
-          "Content-Type": "application/json"
-      },
-      body: JSON.stringify(bundledTxArgs)
-  });
+    const response = await fetch(`https://pumpportal.fun/api/trade-local`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(bundledTxArgs)
+    });
 
-  if(response.status === 200){ // successfully generated transaction
+    if (response.status === 200) { 
+        
       const transactions = await response.json();
       console.log(transactions);
+      
+      /*
       let encodedSignedTransactions = [];
       let signatures = [];
-      
+
       for(let i = 0; i < bundledTxArgs.length; i++){ //decode and sign each tx
           const tx = VersionedTransaction.deserialize(new Uint8Array(bs58.decode(transactions[i])));
           tx.sign([signerKeyPairs[i]]);
@@ -1008,34 +1019,36 @@ async function sendJitoPump(): Promise<void> {
       
       try{
 
-          const jitoResponse = await fetch(`https://mainnet.block-engine.jito.wtf/api/v1/bundles`, {
-              method: "POST",
-              headers: {
-                  "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                  "jsonrpc": "2.0",
-                  "id": 1,
-                  "method": "sendBundle",
-                  "params": [
-                  encodedSignedTransactions
-                  ]
-              })
-          });
+        const jitoResponse = await fetch(`https://mainnet.block-engine.jito.wtf/api/v1/bundles`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "sendBundle",
+                "params": [
+                encodedSignedTransactions
+                ]
+            })
+        });
 
-          console.log(jitoResponse);
+        console.log(jitoResponse);
 
       } catch(e){
-          console.error(e.message);
+        console.error(e.message);
       }
 
       for(let i = 0; i < signatures.length; i++){
-          console.log(`Transaction ${i}: https://solscan.io/tx/${signatures[i]}`);
+        console.log(`Transaction ${i}: https://solscan.io/tx/${signatures[i]}`);
       }
+      */
 
-  } else {
+    } else {
       console.log(response.statusText); // log error
-  }
+    }
+
   } catch(e) {
     console.error(e);
   }
