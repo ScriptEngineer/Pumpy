@@ -78,7 +78,6 @@ const PUMP_FUN_PROGRAM = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEw
 let tokenBought = false;
 
 async function getWalletAssets(targetAddress: string): Promise<any> {
-
   try {
     
     const response = await fetch(`https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`, {
@@ -109,7 +108,6 @@ async function getWalletAssets(targetAddress: string): Promise<any> {
     return {}; // Return empty object on failure
   }
 }
-
 
 async function getTokenMetadata(mintAddress: string): Promise<any> {
 
@@ -353,7 +351,7 @@ async function mainMenu(): Promise<void> {
     });
     */
 
-    sendJitoPump(tokenMint, "buy", 0.05, 15, 0.005, "true");
+    await sendJitoPump(tokenMint, "buy", 0.05, 15, 0.005, "true");
     await mainMenu();
 
   } else if (answer === 'get_warchest') {
@@ -432,12 +430,9 @@ async function mainMenu(): Promise<void> {
       },
     });
 
-    setupSniper({
-      tokenAddress: tokenMint,
-      chain: 'solana',
-    });
-
+    await snipe(tokenMint, 0.05, 15, 15, 0.005, 0.008, 5000, "true");
     await mainMenu(); // Re-run menu after metadata fetch
+
   } else if (answer === 'token_metadata') {
     const tokenMint = await input({
       message: 'Please enter the token address (mint) to fetch metadata:',
@@ -574,40 +569,6 @@ async function depositToWSOLAccount(
   await sendAndConfirmTransaction(connection, transaction, [wallet]);
   console.log('Deposited SOL into WSOL account:', wsolAccountPubkey.toBase58());
 
-}
-
-async function sendBundleToJito(bundledTxns: VersionedTransaction[]) {
-	try {
-    /*
-		const bundleId = await searcherClient.sendBundle(new JitoBundle(bundledTxns, bundledTxns.length));
-		console.log(`Bundle ${bundleId} sent.`);
-
-		const result = await new Promise((resolve, reject) => {
-			searcherClient.onBundleResult(
-				(result) => {
-					console.log("Received bundle result:", result);
-					resolve(result); 
-				},
-				(e: Error) => {
-					console.error("Error receiving bundle result:", e);
-					reject(e); 
-				}
-			);
-		});
-
-		console.log("Result:", result);
-    */
-
-	} catch (error) {
-		const err = error as any;
-		console.error("Error sending bundle:", err.message);
-
-		if (err?.message?.includes("Bundle Dropped, no connected leader up soon")) {
-			console.error("Error sending bundle: Bundle Dropped, no connected leader up soon.");
-		} else {
-			console.error("An unexpected error occurred:", err.message);
-		}
-	}
 }
 
 async function syncWSOLAccount(wsolAccountPubkey: PublicKey): Promise<void> {
@@ -1042,6 +1003,23 @@ async function sendJitoPump(
 
   } catch(e) {
     console.error(e);
+  }
+}
+
+async function snipe(  
+  mintAddress: string, 
+  amount: number,
+  slippageBuy: number,
+  slippageSell: number,
+  priorityBuy: number,
+  prioritySell: number,
+  sellDelay: number,
+  inSol: string="false"
+): Promise<void> {
+  try {
+
+  } catch(e) {
+
   }
 }
 
