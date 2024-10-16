@@ -353,7 +353,7 @@ async function mainMenu(): Promise<void> {
     });
     */
 
-    sendJitoPump(mintAddress, "buy");
+    sendJitoPump(tokenMint, "buy", 0.05, 15, 0.005, "true");
     await mainMenu();
 
   } else if (answer === 'get_warchest') {
@@ -930,7 +930,7 @@ async function walletWatcher(): Promise<void> {
                 matchedWally.tokens.unshift(ass.id);
                 const updatedData = JSON.stringify({"treasure": {"wallets": wallets}}, null, 2); 
                 fs.writeFileSync(walletsPath, updatedData, 'utf8');
-                sendJitoPump(ass.id, "buy");
+                sendJitoPump(ass.id, "buy", 0.05, 15, 0.005, "true");
               }
 
             });
@@ -952,22 +952,28 @@ async function walletWatcher(): Promise<void> {
   }
 }
 
-async function sendJitoPump(mintAddress, type="sell"): Promise<void> {
+async function sendJitoPump(
+  mintAddress: string, 
+  type: string= "sell",
+  amount: number,
+  slippage: number,
+  priorityFee: number,
+  inSol: string="false",
+): Promise<void> {
 
   try {
 
     const signerKeyPairs = [wallet];
-
     const bundledTxArgs = [
       {
-          publicKey: signerKeyPairs[0].publicKey.toBase58(),
-          "action": type,
-          "mint": mintAddress, 
-          "denominatedInSol": "false",  
-          "amount": 1000000, 
-          "slippage": 50, 
-          "priorityFee": 0.00005, //priority fee on the first tx is used for jito tip
-          "pool": "pump"
+        publicKey: signerKeyPairs[0].publicKey.toBase58(),
+        action: type,
+        mint: mintAddress, 
+        denominatedInSol: inSol,  
+        amount: amount, 
+        slippage: slippage, 
+        priorityFee: priorityFee, 
+        pool: "pump"
       }
     ];
 
@@ -984,6 +990,7 @@ async function sendJitoPump(mintAddress, type="sell"): Promise<void> {
       const transactions = await response.json();
       console.log(transactions);
       
+      /*
       let encodedSignedTransactions = [];
       let signatures = [];
 
@@ -1020,7 +1027,7 @@ async function sendJitoPump(mintAddress, type="sell"): Promise<void> {
       for(let i = 0; i < signatures.length; i++){
         console.log(`Transaction ${i}: https://solscan.io/tx/${signatures[i]}`);
       }
-    
+      */
 
     } else {
       console.log(response.statusText); // log error
