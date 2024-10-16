@@ -990,7 +990,6 @@ async function sendJitoPump(
       const transactions = await response.json();
       console.log(transactions);
       
-      /*
       let encodedSignedTransactions = [];
       let signatures = [];
 
@@ -1001,8 +1000,9 @@ async function sendJitoPump(
         signatures.push(bs58.encode(tx.signatures[0]));
       }
       
-      try{
+      try {
 
+        /*
         const jitoResponse = await fetch(`https://mainnet.block-engine.jito.wtf/api/v1/bundles`, {
             method: "POST",
             headers: {
@@ -1018,7 +1018,15 @@ async function sendJitoPump(
             })
         });
 
-        console.log(jitoResponse);
+        const jitoResponseJson = await jitoResponse.json();
+        console.log("Jito Response:", jitoResponseJson);
+
+        if ((jitoResponseJson as any).error) {
+          console.error("Error from Jito API:", (jitoResponseJson as any).error);
+        } else {
+          console.log("Bundle submitted successfully:", (jitoResponseJson as any).result);
+        }
+        */
 
       } catch(e){
         console.error(e.message);
@@ -1027,8 +1035,7 @@ async function sendJitoPump(
       for(let i = 0; i < signatures.length; i++){
         console.log(`Transaction ${i}: https://solscan.io/tx/${signatures[i]}`);
       }
-      */
-
+      
     } else {
       console.log(response.statusText); // log error
     }
