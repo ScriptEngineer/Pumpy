@@ -225,22 +225,13 @@ async function getAssetsByOwner(): Promise<any[]> {
   }
 }
 
-async function getTokenBalances(): Promise<void> {
+async function getTokenBalances() {
   try {
     // Fetch all assets owned by the wallet
     const assets = await getAssetsByOwner();
     const fungibleTokens = assets.filter(asset => asset.interface === 'FungibleToken');
 
-    fungibleTokens.forEach((tkn: any) => { 
-      if (tkn.token_info.price_info) {
-        console.log(`${tkn.token_info.symbol} Balance: ${tkn.token_info.price_info.total_price.toFixed(2)} USD`);
-      }
-    });
-
-    if (assets.length === 0) {
-      console.log("No assets found.");
-      return;
-    }
+    return fungibleTokens;
     
   } catch (error: any) {
     console.error('Error fetching token balances:', error.message);
@@ -443,8 +434,23 @@ async function mainMenu(): Promise<void> {
 
     await mainMenu(); // Re-run menu after metadata fetch
   } else if (answer === 'view_balances') {
-    await getTokenBalances(); // Fetch and display token balances in SOL equivalent
+
+    const shitcoins = await getTokenBalances(); 
+    shitcoins.forEach((tkn: any) => { 
+      if (tkn.token_info.price_info) {
+        console.log(`\n ${tkn.id}`);
+        console.log(`${tkn.token_info.symbol} Balance: ${tkn.token_info.price_info.total_price.toFixed(2)} USD`);
+      }
+    });
+
+    console.log(`\n`);
+    
+    if (shitcoins.length === 0) {
+      console.log("No assets found.");
+    }
+
     await mainMenu(); // Re-run the menu after displaying balances
+
   } else if (answer === 'wrap_sol') {
     const transferAmount = 0.1;
     const amountInLamports = transferAmount * LAMPORTS_PER_SOL;
@@ -882,7 +888,9 @@ async function walletWatcher(): Promise<void> {
                 matchedWally.tokens.unshift(ass.id);
                 const updatedData = JSON.stringify({"treasure": {"wallets": wallets}}, null, 2); 
                 fs.writeFileSync(walletsPath, updatedData, 'utf8');
-                sendJitoPump(ass.id, "buy", 0.05, 15, 0.005, "true");
+              
+                snipe(ass.id, 0.05, 15, 15, 0.005, 0.008, 5000, "true");
+
               }
 
             });
@@ -1004,11 +1012,12 @@ async function snipe(
     console.log(`Buy transaction ${buySignature} confirmed`);
 
     setTimeout(async () => {
+
       let sold = false;
       while (!sold) {
         try {
           // Attempt to execute the sell operation
-          const sellSignature = await sendJitoPump(mintAddress, "sell", amount, slippageSell, prioritySell, inSol);
+          const sellSignature = await sendJitoPump(mintAddress, "sell", "100%", slippageSell, prioritySell, inSol);
           await connection.confirmTransaction(sellSignature, 'finalized');
           console.log(`Sell transaction ${sellSignature} confirmed`);
           console.log("Sell operation successful");
@@ -1019,6 +1028,17 @@ async function snipe(
           await new Promise(resolve => setTimeout(resolve, retryInterval));
         }
       }
+
+      const shitcoins = await getTokenBalances();
+      const stillThere = shitcoins.find((tkn: any) => tkn.id === mintAddress);
+      
+      if (stillThere) {
+        const sellSignature = await sendJitoPump(mintAddress, "sell", "100%", 50, prioritySell, inSol);
+        await connection.confirmTransaction(sellSignature, 'finalized');
+        console.log(`Sell transaction ${sellSignature} confirmed`);
+        console.log("Sell operation successful");
+      }
+
     }, sellDelay);
 
   } catch(e) {
