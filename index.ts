@@ -412,7 +412,7 @@ async function mainMenu(): Promise<void> {
       },
     });
 
-    await snipe(tokenMint, 0.05, 15, 15, 0.005, 0.008, 5000, "true");
+    await snipe(tokenMint, 0.1, 15, 25, 0.005, 0.01, 5000, "true");
     await mainMenu(); // Re-run menu after metadata fetch
 
   } else if (answer === 'token_metadata') {
@@ -851,6 +851,23 @@ async function syncWallets(): Promise<void> {
 
 }
 
+async function waitForConfirmation(connection, signature, commitment = 'confirmed') {
+  return new Promise((resolve, reject) => {
+    const listenerId = connection.onSignature(
+      signature,
+      (result) => {
+        connection.removeSignatureListener(listenerId);
+        if (result.err) {
+          reject(new Error(`Transaction ${signature} failed: ${result.err}`));
+        } else {
+          resolve(result);
+        }
+      },
+      commitment
+    );
+  });
+}
+
 async function walletWatcher(): Promise<void> {
   try {
 
@@ -889,7 +906,7 @@ async function walletWatcher(): Promise<void> {
                 const updatedData = JSON.stringify({"treasure": {"wallets": wallets}}, null, 2); 
                 fs.writeFileSync(walletsPath, updatedData, 'utf8');
               
-                snipe(ass.id, 0.05, 15, 15, 0.005, 0.008, 5000, "true");
+                snipe(ass.id, 0.05, 15, 15, 0.005, 0.008, 8000, "true");
 
               }
 
@@ -1008,7 +1025,10 @@ async function snipe(
   try {
 
     const buySignature = await sendJitoPump(mintAddress, "buy", amount, slippageBuy, priorityBuy, inSol);
+    await waitForConfirmation(connection, buySignature, 'confirmed');
+    /*
     await connection.confirmTransaction(buySignature, 'finalized');
+    */
     console.log(`Buy transaction ${buySignature} confirmed`);
 
     setTimeout(async () => {
@@ -1018,7 +1038,10 @@ async function snipe(
         try {
           // Attempt to execute the sell operation
           const sellSignature = await sendJitoPump(mintAddress, "sell", "100%", slippageSell, prioritySell, inSol);
+          /*
           await connection.confirmTransaction(sellSignature, 'finalized');
+          */
+          await waitForConfirmation(connection, sellSignature, 'confirmed');
           console.log(`Sell transaction ${sellSignature} confirmed`);
           console.log("Sell operation successful");
           sold = true; // Exit the loop if the sell is successful
