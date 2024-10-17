@@ -349,8 +349,9 @@ async function mainMenu(): Promise<void> {
       },
     });
 
-    let buy = await sendJitoPump(tokenMint, "buy", parseFloat(transferAmount), 15, 0.005, "true");
-    console.log(buy);
+    const buySignature = await sendJitoPump(tokenMint, "buy", parseFloat(transferAmount), 15, 0.005, "true");
+    await connection.confirmTransaction(buySignature, 'finalized');
+    console.log(`Buy transaction ${buySignature} confirmed`);
 
     await mainMenu();
 
@@ -404,8 +405,9 @@ async function mainMenu(): Promise<void> {
       console.log(`Token Price Per Token: ${metadata.result.token_info.price_info.price_per_token}`);
     }
 
-    let sell = await sendJitoPump(tokenMint, "sell", "100%", 15, 0.005, "true");
-    console.log(sell);
+    const sellSignature = await sendJitoPump(tokenMint, "sell", "100%", 15, 0.005, "true");
+    await connection.confirmTransaction(sellSignature, 'finalized');
+    console.log(`Sell transaction ${sellSignature} confirmed`);
     await mainMenu();
 
   } else if (answer === 'start_pumping') {
@@ -909,7 +911,7 @@ async function sendJitoPump(
   slippage: number,
   priorityFee: number,
   inSol: string="false",
-): Promise<void> {
+) {
 
   try {
 
@@ -949,42 +951,38 @@ async function sendJitoPump(
         encodedSignedTransactions.push(bs58.encode(tx.serialize()));
         signatures.push(bs58.encode(tx.signatures[0]));
       }
-      
-      try {
-   
-        const jitoResponse = await fetch(`https://mainnet.block-engine.jito.wtf/api/v1/bundles`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "sendBundle",
-                "params": [
-                  encodedSignedTransactions
-                ]
-            })
-        });
+    
+  
+      const jitoResponse = await fetch(`https://mainnet.block-engine.jito.wtf/api/v1/bundles`, {
+          method: "POST",
+          headers: {
+              "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "sendBundle",
+              "params": [
+                encodedSignedTransactions
+              ]
+          })
+      });
 
-        const result = await jitoResponse.json();
-        console.log(result);
-        return;
+      const jitoResult:any = await jitoResponse.json();
 
-      } catch(e){
-        console.error(e.message);
+      if (!jitoResponse.ok || !jitoResult.result) {
+        throw new Error(`Jito API error: ${jitoResult.error || jitoResponse.statusText}`);
       }
 
-      for(let i = 0; i < signatures.length; i++){
-        console.log(`Transaction ${i}: https://solscan.io/tx/${signatures[i]}`);
-      }
+      return signatures[0];
+
       
     } else {
-      console.log(response.statusText); // log error
+      throw new Error(`Pump Portal API error: ${response.statusText}`);
     }
 
   } catch(e) {
-    console.error(e);
+    throw new Error(`sendJitoPump error: ${e.message || e}`);
   }
 }
 
@@ -997,18 +995,22 @@ async function snipe(
   prioritySell: number,
   sellDelay: number,
   inSol: string="false",
-  retryInterval: number = 300
+  retryInterval: number = 1000
 ): Promise<void> {
   try {
 
-    await sendJitoPump(mintAddress, "buy", amount, slippageBuy, priorityBuy, inSol);
+    const buySignature = await sendJitoPump(mintAddress, "buy", amount, slippageBuy, priorityBuy, inSol);
+    await connection.confirmTransaction(buySignature, 'finalized');
+    console.log(`Buy transaction ${buySignature} confirmed`);
 
     setTimeout(async () => {
       let sold = false;
       while (!sold) {
         try {
           // Attempt to execute the sell operation
-          await sendJitoPump(mintAddress, "sell", amount, slippageSell, prioritySell, inSol);
+          const sellSignature = await sendJitoPump(mintAddress, "sell", amount, slippageSell, prioritySell, inSol);
+          await connection.confirmTransaction(sellSignature, 'finalized');
+          console.log(`Sell transaction ${sellSignature} confirmed`);
           console.log("Sell operation successful");
           sold = true; // Exit the loop if the sell is successful
         } catch (e) {
@@ -1017,7 +1019,6 @@ async function snipe(
           await new Promise(resolve => setTimeout(resolve, retryInterval));
         }
       }
-      console.log("Snipe finished!");
     }, sellDelay);
 
   } catch(e) {
