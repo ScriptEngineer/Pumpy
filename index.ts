@@ -341,7 +341,6 @@ async function mainMenu(): Promise<void> {
       console.log(`Token Price Per Token: ${metadata.result.token_info.price_info.price_per_token}`);
     }
    
-    /*
     const transferAmount = await input({
       message: 'Please enter the amount of SOL to spend on the token:',
       validate(value: string) {
@@ -349,9 +348,10 @@ async function mainMenu(): Promise<void> {
         return valid || 'Please enter a valid amount of SOL.';
       },
     });
-    */
 
-    await sendJitoPump(tokenMint, "buy", 0.05, 15, 0.005, "true");
+    let buy = await sendJitoPump(tokenMint, "buy", parseFloat(transferAmount), 15, 0.005, "true");
+    console.log(buy);
+
     await mainMenu();
 
   } else if (answer === 'get_warchest') {
@@ -378,7 +378,7 @@ async function mainMenu(): Promise<void> {
     await depositToWSOLAccount(wsolAccountPubkey, parseFloat(depositAmount));
 
   } else if (answer === 'sell_token') {
-    // Ask the user for the token address
+
     const tokenMint = await input({
       message: 'Please enter the token address (mint):',
       validate(value: string) {
@@ -387,9 +387,8 @@ async function mainMenu(): Promise<void> {
       },
     });
 
-    // Retrieve and display token info
-    const tokenMetadata = await getTokenMetadata(tokenMint);
     const mintAddress = new PublicKey(tokenMint);
+    const metadata : any = await getTokenMetadata(tokenMint);
     const tokenAccount = await getOrCreateAssociatedTokenAccount(
       connection,
       wallet,
@@ -397,28 +396,18 @@ async function mainMenu(): Promise<void> {
       wallet.publicKey
     );
 
-    if (tokenMetadata && tokenAccount && mintAddress) {
-      console.log(`Token Name: ${tokenMetadata.onChainData.data.name}`);
-      console.log(`Symbol: ${tokenMetadata.onChainData.data.symbol}`);
-      console.log(`Is Frozen: `, tokenAccount.isFrozen);
-      console.log(`Mint Address: ${mintAddress.toBase58()}`);
-    } else {
-      console.error('Could not fetch token data.');
-      await mainMenu(); // Return to menu if no metadata found
-      return;
+    if (tokenAccount && metadata && mintAddress) {
+      console.log(metadata);
+      console.log(`\nToken Symbol: ${metadata.result.token_info.symbol}`);
+      console.log(`Token Supply: ${metadata.result.token_info.supply}`);
+      console.log(`Token Decimals: ${metadata.result.token_info.decimals}`);
+      console.log(`Token Price Per Token: ${metadata.result.token_info.price_info.price_per_token}`);
     }
 
-    // Ask for the amount of tokens to sell
-    const transferAmount = await input({
-      message: 'Please enter the number of tokens to sell:',
-      validate(value: string) {
-        const valid = !isNaN(Number(value)) && parseFloat(value) > 0;
-        return valid || 'Please enter a valid number of tokens.';
-      },
-    });
+    let sell = await sendJitoPump(tokenMint, "sell", "100%", 15, 0.005, "true");
+    console.log(sell);
+    await mainMenu();
 
-    // Initiate the swap (sell)
-    await mainMenu(); // Re-run menu after selling
   } else if (answer === 'start_pumping') {
     await startListener(); // Start the sniper process
   } else if (answer === 'start_sniper') {
@@ -916,7 +905,7 @@ async function walletWatcher(): Promise<void> {
 async function sendJitoPump(
   mintAddress: string, 
   type: string= "sell",
-  amount: number,
+  amount: number | string,
   slippage: number,
   priorityFee: number,
   inSol: string="false",
@@ -962,8 +951,7 @@ async function sendJitoPump(
       }
       
       try {
-
-        /*
+   
         const jitoResponse = await fetch(`https://mainnet.block-engine.jito.wtf/api/v1/bundles`, {
             method: "POST",
             headers: {
@@ -979,15 +967,9 @@ async function sendJitoPump(
             })
         });
 
-        const jitoResponseJson = await jitoResponse.json();
-        console.log("Jito Response:", jitoResponseJson);
-
-        if ((jitoResponseJson as any).error) {
-          console.error("Error from Jito API:", (jitoResponseJson as any).error);
-        } else {
-          console.log("Bundle submitted successfully:", (jitoResponseJson as any).result);
-        }
-        */
+        const result = await jitoResponse.json();
+        console.log(result);
+        return;
 
       } catch(e){
         console.error(e.message);
@@ -1014,12 +996,32 @@ async function snipe(
   priorityBuy: number,
   prioritySell: number,
   sellDelay: number,
-  inSol: string="false"
+  inSol: string="false",
+  retryInterval: number = 300
 ): Promise<void> {
   try {
 
-  } catch(e) {
+    await sendJitoPump(mintAddress, "buy", amount, slippageBuy, priorityBuy, inSol);
 
+    setTimeout(async () => {
+      let sold = false;
+      while (!sold) {
+        try {
+          // Attempt to execute the sell operation
+          await sendJitoPump(mintAddress, "sell", amount, slippageSell, prioritySell, inSol);
+          console.log("Sell operation successful");
+          sold = true; // Exit the loop if the sell is successful
+        } catch (e) {
+          console.error("Sell attempt failed:", e.message || e);
+          // Wait for the retry interval before the next attempt
+          await new Promise(resolve => setTimeout(resolve, retryInterval));
+        }
+      }
+      console.log("Snipe finished!");
+    }, sellDelay);
+
+  } catch(e) {
+    console.error(e);
   }
 }
 
