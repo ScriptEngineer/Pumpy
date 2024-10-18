@@ -1476,7 +1476,7 @@ async function startListener(): Promise<void> {
         console.log('Initial Tokens Liquidity: ', initialTokens);
         console.log("Sniping....");
 
-        await snipe(tokenMint, 0.05, 15, 25, 0.005, 0.008, 60000, "true");
+        await snipe(tokenMint, 0.05, 15, 25, 0.005, 0.008, 90000, "true");
 
         res.status(200).send('Received');
 
