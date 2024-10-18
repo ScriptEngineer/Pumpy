@@ -1450,6 +1450,16 @@ async function startListener(): Promise<void> {
           }
         });
 
+        const tokenInfo: any = await getTokenMetadata(tokenMint);
+        console.log(tokenInfo.result);
+
+        /*
+        if (tokenInfo.result.ownership.frozen || tokenInfo.result.mutable) {
+          console.log('Skipping bad token...');
+          return;
+        }
+        */
+
         console.log('Initial SOL Liquidity: ', initialSol);
         console.log('Initial Tokens Liquidity: ', initialTokens);
 
