@@ -1143,6 +1143,7 @@ async function startListener(): Promise<void> {
   try {
 
     let readyForNext = true;
+    let tokenBought = false;
     const app = express();
     app.use(bodyParserJson());
  
@@ -1432,10 +1433,13 @@ async function startListener(): Promise<void> {
         let initialSol = 0;
         let initialTokens = 0;
         let badToken = false;
+        
+        if (tokenBought) {
+          return;
+        }
 
         const data = req.body[0];
         const tokenMint = data.tokenTransfers[0].mint;
-
         const tokenInfo: any = await getTokenMetadata(tokenMint);
       
         if (tokenInfo.result.ownership.frozen || tokenInfo.result.mutable) {
@@ -1456,25 +1460,31 @@ async function startListener(): Promise<void> {
           }
         });
 
+        /* Inital SOL liquidity too low */
         if (initialSol < 0.05) {
-          console.error('Initial SOL liquidity is too low:', initialSol);
           badToken = true;
           return;
+        } else {
+          tokenBought = true;
         }
         
         console.log('\n PUMP FUN POOL CREATED');
         console.log('Token Mint: ', tokenMint);
         console.log(`Token Name: ${tokenInfo.result.content.metadata.name}`);
         console.log(`Token Symbol: ${tokenInfo.result.content.metadata.symbol}`);
-    
         console.log('Initial SOL Liquidity: ', initialSol);
         console.log('Initial Tokens Liquidity: ', initialTokens);
+        console.log("Sniping....");
+
+        await snipe(tokenMint, 0.05, 15, 25, 0.005, 0.008, 60000, "true");
 
         res.status(200).send('Received');
+
       } catch (error: any) {
         console.error('Error processing /pumpkins webhook:', error.message);
         res.status(500).send('Error');
       }
+
     });
   } catch (error: any) {
     console.error('Error starting sniper:', error.message);
