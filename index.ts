@@ -1444,23 +1444,29 @@ async function startListener(): Promise<void> {
           return;
         }    
 
-        console.log('\n PUMP FUN POOL CREATED');
-        console.log('Token Mint: ', tokenMint);
-        console.log(`Token Name: ${tokenInfo.result.content.metadata.name}`);
-        console.log(`Token Symbol: ${tokenInfo.result.content.metadata.symbol}`);
-    
         data.nativeTransfers.forEach((transfer: any) => {
           if (transfer.amount > initialSol) {
             initialSol = transfer.amount / LAMPORTS_PER_SOL;
           }
         });
-
+        
         data.tokenTransfers.forEach((transfer: any) => {
           if (transfer.tokenAmount > initialTokens) {
             initialTokens = transfer.tokenAmount;
           }
         });
 
+        if (initialSol < 0.05) {
+          console.error('Initial SOL liquidity is too low:', initialSol);
+          badToken = true;
+          return;
+        }
+        
+        console.log('\n PUMP FUN POOL CREATED');
+        console.log('Token Mint: ', tokenMint);
+        console.log(`Token Name: ${tokenInfo.result.content.metadata.name}`);
+        console.log(`Token Symbol: ${tokenInfo.result.content.metadata.symbol}`);
+    
         console.log('Initial SOL Liquidity: ', initialSol);
         console.log('Initial Tokens Liquidity: ', initialTokens);
 
