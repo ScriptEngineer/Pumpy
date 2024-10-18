@@ -1447,8 +1447,8 @@ async function startListener(): Promise<void> {
         console.log(tokenInfo);
         console.log('PUMP FUN POOL CREATED');
         console.log('Token Mint: ', tokenMint);
-        console.log(`Token Name: ${tokenInfo.result.metadata.name}`);
-        console.log(`Token Symbol: ${tokenInfo.result.metadata.symbol}`);
+        console.log(`Token Name: ${tokenInfo.result.content.metadata.name}`);
+        console.log(`Token Symbol: ${tokenInfo.result.content.metadata.symbol}`);
     
         data.nativeTransfers.forEach((transfer: any) => {
           if (transfer.amount > initialSol) {
