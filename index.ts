@@ -1444,8 +1444,7 @@ async function startListener(): Promise<void> {
           return;
         }    
 
-        console.log(tokenInfo);
-        console.log('PUMP FUN POOL CREATED');
+        console.log('\n PUMP FUN POOL CREATED');
         console.log('Token Mint: ', tokenMint);
         console.log(`Token Name: ${tokenInfo.result.content.metadata.name}`);
         console.log(`Token Symbol: ${tokenInfo.result.content.metadata.symbol}`);
