@@ -1428,16 +1428,28 @@ async function startListener(): Promise<void> {
 
     app.post('/pumpkins', async (req: express.Request, res: express.Response) => {
       try {
+
         let initialSol = 0;
         let initialTokens = 0;
+        let badToken = false;
 
         const data = req.body[0];
         const tokenMint = data.tokenTransfers[0].mint;
 
+        const tokenInfo: any = await getTokenMetadata(tokenMint);
+      
+        if (tokenInfo.result.ownership.frozen || tokenInfo.result.mutable) {
+          console.log('Skipping bad token...');
+          badToken = true;
+          return;
+        }    
+
         console.log(data);
         console.log('PUMP FUN POOL CREATED');
         console.log('Token Mint: ', tokenMint);
-
+        console.log(`Token Name: ${tokenInfo.result.metadata.name}`);
+        console.log(`Token Symbol: ${tokenInfo.result.metadata.symbol}`);
+    
         data.nativeTransfers.forEach((transfer: any) => {
           if (transfer.amount > initialSol) {
             initialSol = transfer.amount / LAMPORTS_PER_SOL;
@@ -1449,16 +1461,6 @@ async function startListener(): Promise<void> {
             initialTokens = transfer.tokenAmount;
           }
         });
-
-        const tokenInfo: any = await getTokenMetadata(tokenMint);
-        console.log(tokenInfo.result);
-
-        /*
-        if (tokenInfo.result.ownership.frozen || tokenInfo.result.mutable) {
-          console.log('Skipping bad token...');
-          return;
-        }
-        */
 
         console.log('Initial SOL Liquidity: ', initialSol);
         console.log('Initial Tokens Liquidity: ', initialTokens);
